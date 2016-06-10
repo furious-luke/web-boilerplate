@@ -16,10 +16,6 @@ RUN chmod +x /app/.profile.d/python.sh
 COPY requirements /app/user/requirements/
 RUN /app/.heroku/python/bin/pip install -r requirements/production.txt
 
-RUN wget -O- https://toolbelt.heroku.com/install-ubuntu.sh | sed 's/sudo -k//g' | sed 's/sudo//g' | sh && \
-    heroku -h
-ADD docker/gen-netrc.sh /app/.profile.d/
-
 RUN mkdir -p /app/user/scripts /app/user/keys
 COPY scripts/run_rq.sh /app/user/scripts/
 
