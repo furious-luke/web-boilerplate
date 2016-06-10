@@ -11,7 +11,7 @@ function mapStateToProps( state ) {
 
 function mapDispatchToProps( dispatch ) {
   return {
-    dataActions: bindActionCreators( dataActions, dispatch ),
+    // dataActions: bindActionCreators( , dispatch ),
   };
 }
 

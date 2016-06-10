@@ -21,7 +21,6 @@ ENV PYTHONPATH=/usr/local/app/_project_:$PYTHONPATH
 
 ADD manage.py /usr/local/app/
 ADD scripts /usr/local/app/scripts/
-ADD docker/gen-netrc.sh /etc/my_init.d/
 WORKDIR /usr/local/app
 EXPOSE 8000
 

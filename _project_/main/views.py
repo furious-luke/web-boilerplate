@@ -8,9 +8,6 @@ from rest_framework.response import Response
 from rest_framework.decorators import detail_route
 from jsdata.views import DRFViewMixin
 
-from .models import Action
-from .serializers import ActionSerializer
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +21,8 @@ class APIViewMixin(DRFViewMixin):
 
     def get_api(self, **kwargs):
         api = {
-            'register': reverse('registration_register'),
-            'activate': reverse('registration_activate_ajax'),
             'login': reverse('login'),
             'logout': reverse('logout'),
-            'password_change': reverse('password_change'),
         }
         api.update(kwargs)
         return super(APIViewMixin, self).get_api(**api)
