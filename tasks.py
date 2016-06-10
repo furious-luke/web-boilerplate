@@ -10,13 +10,13 @@ BASE_CONFIG = {
 
 DEV_CONFIG = {
     'compose_file': 'docker/docker-compose.development.yml',
-    'project': 'agentdev',
+    'project': '_project_',
     'manage': '$run python3 -W ignore manage.py',
 }
 
 PROD_CONFIG = {
     'compose': 'docker-compose -p $project',
-    'project': 'agent',
+    'project': '_project_',
     'run': '$compose run --rm --service-ports web',
     'manage': '$run python3 -W ignore manage.py',
 }
@@ -56,7 +56,7 @@ def run_cfg(cmd, dev=True, pty=False):
 
 @task(help={'no-cache': 'Disable docker cache.',
             'production': 'Build production version.'})
-def build(no_cache=False, production=False):
+def build(ctx, no_cache=False, production=False):
     """Build the docker containers.
     """
     opts = ''
@@ -66,26 +66,26 @@ def build(no_cache=False, production=False):
 
 
 @task(help={'production': 'Launch production version.'})
-def up(production=False):
+def up(ctx, production=False):
     """Launch the server.
     """
     run_cfg('$compose up', not production)
 
 
 @task(aliases=['ut'])
-def unit_test():
+def unit_test(ctx):
     """Run unit-tests.
     """
     run_cfg('$manage test')
 
 
 @task(aliases=['it'])
-def integration_test():
+def integration_test(ctx):
     run('{test} test --test=integration'.format(**CONFIG))
 
 
 @task(aliases=['nt'])
-def node_test():
+def node_test(ctx):
     run('{run} npm run test'.format(**CONFIG))
 
 
@@ -95,66 +95,66 @@ def node_test():
 
 
 @task(help={'production': 'Run command on production.'})
-def manage(cmd, production=False):
+def manage(ctx, cmd, production=False):
     """Run a management command.
     """
     run_cfg('$manage {}'.format(cmd), not production, pty=True)
 
 
 @task(aliases=['sp'])
-def shell_plus():
+def shell_plus(ctx):
     manage('shell_plus')
 
 
 @task(help={'production': 'Migrate production database.'})
-def migrate(production=False):
+def migrate(ctx, production=False):
     """Migrate the database.
     """
     run_cfg('$manage migrate', not production)
 
 
 @task(aliases=['mm'])
-def make_migrations():
+def make_migrations(ctx):
     """Check for outdated models.
     """
     manage('makemigrations')
 
 
 @task
-def pdb():
+def pdb(ctx):
     run('{run} python3 manage.py runserver 0.0.0.0:8000'.format(**CONFIG))
 
 
 @task(help={'production': 'Start command-line in production container.'})
-def cli(production=False):
+def cli(ctx, production=False):
     """Open a terminal in the container.
     """
     run_cfg('$run bash', not production, pty=True)
 
 
 @task(aliases=['cs'])
-def collect_static():
+def collect_static(ctx):
     """Collect static files (usually to S3).
     """
     run_cfg('$run ./manage.py collectstatic', production=True)
 
 
 @task
-def deploy():
+def deploy(ctx):
     """Deploy production to Heroku.
     """
     run('./scripts/release.sh')
 
 
 @task(help={'production': 'Stop production containers.'})
-def down(production=False):
+def down(ctx, production=False):
     """Stop all running containers.
     """
     run_cfg('$compose stop', not production)
 
 
 @task(help={'production': 'Remove production containers.'})
-def kill(production=False):
+def kill(ctx, production=False):
     """Remove containers.
     """
     down()
