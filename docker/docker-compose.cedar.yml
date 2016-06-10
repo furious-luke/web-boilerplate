@@ -1,0 +1,52 @@
+version: '2'
+services:
+
+  db:
+    image: aidanlister/postgres-hstore:latest
+
+  redis:
+    image: redis:alpine
+
+  worker:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.worker
+    environment:
+      - DJANGO_SETTINGS_MODULE=_project_.settings.production
+      - DATABASE_URL=postgres://postgres:@db:5432/postgres
+      - REDIS_URL=redis://redis:6379
+      - BACKUP_ENCRYPT_PW=testing
+      - HEROKU_TOOLBELT_API_EMAIL
+      - HEROKU_TOOLBELT_API_PASSWORD
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    links:
+      - db
+      - redis
+    volumes:
+      - ./var:/app/user/var
+
+  web:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.web
+    command: 'bash -c ''gunicorn --keyfile=keys/dev.key --certfile=keys/dev.cert _project_.wsgi:application'''
+    environment:
+      - PORT=8080
+      - WEB_CONCURRENCY=1
+      - DJANGO_SETTINGS_MODULE=_project_.settings.production
+      - DATABASE_URL=postgres://postgres:@db:5432/postgres
+      - REDIS_URL=redis://redis:6379
+      - BACKUP_ENCRYPT_PW=testing
+      - HEROKU_TOOLBELT_API_EMAIL
+      - HEROKU_TOOLBELT_API_PASSWORD
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    ports:
+      - 8080:8080
+    links:
+      - db
+      - redis
+    volumes:
+      - ./var:/app/user/var
+      - ./keys:/app/user/keys

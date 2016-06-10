@@ -1,0 +1,60 @@
+version: '2'
+services:
+
+  db:
+    image: aidanlister/postgres-hstore:latest
+
+  redis:
+    image: redis:alpine
+
+  hot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.node
+    ports:
+      - 3000:3000
+    volumes:
+      - ../_project_:/usr/local/app/_project_
+      - ../var:/usr/local/app/var
+      - ../node_modules:/usr/local/app/node_modules
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.development
+      args:
+        run: worker
+    links:
+      - db
+      - redis
+    volumes:
+      - ../_project_:/usr/local/app/_project_
+      - ../var:/usr/local/app/var
+    environment:
+      - BACKUP_ENCRYPT_PW=testing
+      - HEROKU_TOOLBELT_API_EMAIL
+      - HEROKU_TOOLBELT_API_PASSWORD
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.development
+      args:
+        run: runserver
+    links:
+      - db
+      - redis
+      - hot
+    ports:
+      - 8000:8000
+    volumes:
+      - ../_project_:/usr/local/app/_project_
+      - ../var:/usr/local/app/var
+    environment:
+      - BACKUP_ENCRYPT_PW=testing
+      - HEROKU_TOOLBELT_API_EMAIL
+      - HEROKU_TOOLBELT_API_PASSWORD
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY

@@ -1,0 +1,36 @@
+{
+    "Version": "2008-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowPublicRead",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::{bucket_name}/*"
+        },
+        {
+            "Sid": "AllowModify",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "{user_arn}"
+            },
+            "Action": [
+                "s3:PutObjectAcl",
+                "s3:PutObject",
+                "s3:DeleteObjects"
+            ],
+            "Resource": "arn:aws:s3:::{bucket_name}/*"
+        },
+        {
+            "Sid": "BucketAccess",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "{user_arn}"
+            },
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::{bucket_name}"
+        }
+    ]
+}

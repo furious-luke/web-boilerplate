@@ -1,0 +1,35 @@
+FROM heroku/cedar:14
+
+ENV PORT 3000
+ENV PYTHON_VERSION python-3.5.1
+ENV PATH /app/.heroku/python/bin/:$PATH
+
+RUN mkdir -p /app/.heroku/python /app/.profile.d
+WORKDIR /app/user
+
+RUN curl -s https://lang-python.s3.amazonaws.com/cedar-14/runtimes/$PYTHON_VERSION.tar.gz | tar zx -C /app/.heroku/python
+RUN curl -s https://bootstrap.pypa.io/get-pip.py | /app/.heroku/python/bin/python
+
+RUN echo 'export PATH=$HOME/.heroku/python/bin:$PATH PYTHONUNBUFFERED=true PYTHONHOME=/app/.heroku/python LIBRARY_PATH=/app/.heroku/vendor/lib:/app/.heroku/python/lib:$LIBRARY_PATH LD_LIBRARY_PATH=/app/.heroku/vendor/lib:/app/.heroku/python/lib:$LD_LIBRARY_PATH LANG=${LANG:-en_US.UTF-8} PYTHONHASHSEED=${PYTHONHASHSEED:-random} PYTHONPATH=${PYTHONPATH:-/app/user/}' > /app/.profile.d/python.sh
+RUN chmod +x /app/.profile.d/python.sh
+
+COPY requirements /app/user/requirements/
+RUN /app/.heroku/python/bin/pip install -r requirements/production.txt
+
+ENV HOME /app/user
+RUN wget -O- https://toolbelt.heroku.com/install-ubuntu.sh | sed 's/sudo -k//g' | sed 's/sudo//g' | sh && \
+    heroku -h
+ADD docker/gen-netrc.sh /app/.profile.d/
+
+RUN mkdir -p /app/user/scripts /app/user/keys
+COPY scripts/run_rq.sh /app/user/scripts/
+
+WORKDIR /app/user
+COPY _project_ /app/user/_project_/
+COPY Procfile /app/user/
+COPY manage.py /app/user/
+COPY webpack-stats.production.json /app/user/
+ENV PYTHONPATH=/app/user/_project_:$PYTHONPATH
+RUN echo 'export PYTHONPATH=/app/user/_project_/:$PYTHONPATH' >> /app/.profile.d/python.sh
+
+CMD ./scripts/run_rq.sh
