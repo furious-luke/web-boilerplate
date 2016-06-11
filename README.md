@@ -6,6 +6,7 @@
 ./scripts/setup_project.sh myproject
 pip3 install invoke
 inv build
+inv migrate
 inv up
 ```
 
@@ -17,6 +18,7 @@ Then go to `localhost:8000`.
 ```
 ./scripts/gen_dev_ssc.sh
 inv build -p
+inv migrate -p
 inv up -p
 ```
 
