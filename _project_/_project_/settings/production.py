@@ -5,6 +5,8 @@ from .base import *
 
 DEBUG = os.environ.get('DEBUG', 'false') == 'true'
 
+SECRET_KEY = os.environ.get('SECRET_KEY', '')
+
 SESSION_COOKIE_SECURE = True
 
 CSRF_COOKIE_SECURE = True

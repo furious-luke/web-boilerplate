@@ -23,7 +23,7 @@ VAR_DIR = os.path.join(os.path.dirname(BASE_DIR), 'var')
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '8h$ak6_%qhmxil!=ua4%^+wjq)dcue@m&n(sg&d41!@)pct*6+'
+SECRET_KEY = 'development'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
