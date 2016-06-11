@@ -30,5 +30,7 @@ Then go to `https://localhost:8080`.
 Requires a Heroku app of the same name as the project.
 
 ```
+npm build:prod
+inv cs
 inv deploy
 ```
