@@ -1,0 +1,16 @@
+version: '2'
+services:
+
+  worker:
+    build:
+      args:
+        project: $project
+    volumes:
+      - ../$project:/usr/local/app/$project
+
+  web:
+    build:
+      args:
+        project: $project
+    volumes:
+      - ../$project:/usr/local/app/$project

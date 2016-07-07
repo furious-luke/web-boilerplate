@@ -4,20 +4,22 @@ from invoke import run, task
 
 
 BASE_CONFIG = {
-    'compose': 'docker-compose -f $compose_file -p $project',
-    'run': '$compose run --rm --service-ports web /sbin/my_init --skip-runit --',
+    'compose': 'docker-compose -f $compose_file -f $compose_project_file -p $docker_project',
+    'compose_project_file': 'docker-compose.project.yml',
+    'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
+    'service': 'web',
 }
 
 DEV_CONFIG = {
-    'compose_file': 'docker/docker-compose.development.yml',
-    'project': '_project_',
+    'docker_project': '${project}_dev',
+    'compose_file': 'boilerplate/docker/docker-compose.development.yml',
     'manage': '$run python3 -W ignore manage.py',
 }
 
 PROD_CONFIG = {
-    'compose': 'docker-compose -p $project',
-    'project': '_project_',
-    'run': '$compose run --rm --service-ports web',
+    'docker_project': '$project',
+    'compose_file': 'boilerplate/docker/docker-compose.cedar.yml',
+    'run': '$compose run --rm --service-ports $service',
     'manage': '$run python3 -W ignore manage.py',
 }
 
@@ -39,16 +41,16 @@ def merge_cfgs(*args):
     return x
 
 
-def dev_cfg():
-    return merge_cfgs(BASE_CONFIG, DEV_CONFIG)
+def dev_cfg(*args):
+    return merge_cfgs(BASE_CONFIG, DEV_CONFIG, *args)
 
 
-def prod_cfg():
-    return merge_cfgs(BASE_CONFIG, PROD_CONFIG)
+def prod_cfg(*args):
+    return merge_cfgs(BASE_CONFIG, PROD_CONFIG, *args)
 
 
-def run_cfg(cmd, dev=True, pty=False):
-    cfg = dev_cfg() if dev else prod_cfg()
+def run_cfg(cmd, dev=True, pty=False, **kwargs):
+    cfg = dev_cfg(kwargs) if dev else prod_cfg(kwargs)
     cmd = Template(cmd).substitute(cfg)
     print(cmd)
     run(cmd, pty=pty)
@@ -66,10 +68,13 @@ def build(ctx, no_cache=False, production=False):
 
 
 @task(help={'production': 'Launch production version.'})
-def up(ctx, production=False):
+def up(ctx, service=None, production=False):
     """Launch the server.
     """
-    run_cfg('$compose up', not production)
+    cmd = '$compose up'
+    if service:
+        cmd += ' ' + service
+    run_cfg(cmd, not production)
 
 
 @task(aliases=['ut'])
@@ -125,11 +130,14 @@ def pdb(ctx):
     run('{run} python3 manage.py runserver 0.0.0.0:8000'.format(**CONFIG))
 
 
-@task(help={'production': 'Start command-line in production container.'})
-def cli(ctx, production=False):
+@task(help={
+    'service': 'Which service to start.',
+    'production': 'Start command-line in production container.'
+})
+def cli(ctx, service='web', production=False):
     """Open a terminal in the container.
     """
-    run_cfg('$run bash', not production, pty=True)
+    run_cfg('$run bash', not production, pty=True, service=service)
 
 
 @task(aliases=['cs'])

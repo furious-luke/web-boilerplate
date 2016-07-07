@@ -9,4 +9,4 @@ if [ -n ${CERTFILE+x} ]; then
 fi
 OPTS=$(printf " %s" "${OPTS[@]}")
 OPTS=${OPTS:1}
-exec gunicorn _project_.wsgi:application $OPTS  #>> /var/log/runserver.log 2>&1
+exec gunicorn abas.wsgi:application $OPTS  #>> /var/log/runserver.log 2>&1

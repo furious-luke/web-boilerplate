@@ -1,4 +1,4 @@
 node_modules
 var
 .git
-_project_/_project_/settings/local.py
+**/settings/local.py

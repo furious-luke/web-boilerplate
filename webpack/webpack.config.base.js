@@ -4,7 +4,7 @@ var BundleTracker = require( 'webpack-bundle-tracker' );
 
 module.exports = {
   context: path.resolve( __dirname + '/..' ),
-  entry: './_project_/main/frontend/index',
+  entry: './frontend/boilerplate/index',
   output: {
     path: path.resolve( './var/build/js/' ),
     filename: '[name]-[hash].js'
@@ -51,6 +51,7 @@ module.exports = {
     ]
   },
   resolve: {
+    root: path.resolve( 'frontend' ),
     modulesDirectories: [ 'node_modules' ],
     extensions: [ '', '.js', '.jsx' ]
   }

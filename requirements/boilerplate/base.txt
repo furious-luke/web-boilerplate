@@ -1,0 +1,21 @@
+Django==1.9.2
+django-extensions
+djangorestframework
+Pillow
+python-dateutil
+pytz
+six
+dj-database-url
+redis
+django-redis
+-e git+https://github.com/ABASystems/django-rq#egg=django-rq
+rq-scheduler
+django-hstore
+psycopg2
+-e git+https://github.com/furious-luke/django-supertest#egg=django-supertest
+-e git+https://github.com/furious-luke/django-jsdata#egg=django-jsdata
+-e git+https://github.com/furious-luke/django-xauth#egg=django-xauth
+django-storages
+django-webpack-loader
+boto
+-e git+https://github.com/ABASystems/supervisor#egg=supervisor

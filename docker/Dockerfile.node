@@ -1,3 +1,5 @@
+# Generates NodeJS containers.
+
 FROM phusion/baseimage:latest
 MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
 CMD [ "/sbin/my_init" ]
@@ -9,13 +11,13 @@ RUN mkdir -p /usr/local/app/var /usr/local/app/webpack \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /usr/local/app
-COPY package.json /usr/local/app/
+# COPY package.json /usr/local/app/
 # Don't install node packages by default. To help development we install
 # node packages outside and have docker-compose import them.
 # RUN npm install
 
-ADD webpack/ /usr/local/app/webpack/
-ADD .babelrc /usr/local/app/
-ADD docker/hotserver.sh /etc/service/hotserver/run
+# ADD boilerplate/webpack/ /usr/local/app/webpack/
+# ADD boilerplate/.babelrc /usr/local/app/
+ADD boilerplate/docker/hotserver.sh /etc/service/hotserver/run
 
 EXPOSE 3000

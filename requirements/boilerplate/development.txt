@@ -1,0 +1,5 @@
+-r base.txt
+coverage==4.0.3
+model-mommy
+fake-factory
+selenium

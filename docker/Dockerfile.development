@@ -1,13 +1,18 @@
+# Generates development containers. Switches between
+# web and worker via the `run` argument.
+
 FROM phusion/baseimage:latest
 MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
 CMD [ "/sbin/my_init" ]
 
-RUN mkdir -p /usr/local/src/requirements /usr/local/app/scripts /etc/my_init.d
+RUN mkdir -p /usr/local/src/requirements/boilerplate /usr/local/app \
+    /etc/my_init.d
 
 RUN apt-get -y update
 RUN apt-get -y install python3 python3-pip git postgresql-client libpq-dev \
                libjpeg62 libjpeg-dev wget
 
+ADD boilerplate/requirements/boilerplate /usr/local/src/requirements/boilerplate/
 ADD requirements /usr/local/src/requirements/
 RUN pip3 install -r /usr/local/src/requirements/development.txt
 
@@ -16,14 +21,15 @@ RUN apt-get -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN echo /root > /etc/container_environment/HOME
 
-ENV DJANGO_SETTINGS_MODULE=_project_.settings.development
-ENV PYTHONPATH=/usr/local/app/_project_:$PYTHONPATH
-
-ADD manage.py /usr/local/app/
-ADD scripts /usr/local/app/scripts/
+# ADD manage.py /usr/local/app/
+# ADD boilerplate/scripts /usr/local/app/scripts/
 WORKDIR /usr/local/app
 EXPOSE 8000
 
+ARG project
+ENV DJANGO_SETTINGS_MODULE=${project}.settings.development
+ENV PYTHONPATH=/usr/local/app/${project}:$PYTHONPATH
+
 ARG run
 RUN mkdir -p /etc/service/${run}
-ADD docker/${run}.sh /etc/service/${run}/run
+ADD boilerplate/docker/${run}.sh /etc/service/${run}/run

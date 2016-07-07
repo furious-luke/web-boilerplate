@@ -1,0 +1,23 @@
+{% load staticfiles jsdata %}
+{% load render_bundle from webpack_loader %}
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>{% block title %}Web Boilerplate{% endblock %}</title>
+    <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png" />
+    <script>
+      var csrf = "{% csrf_token %}";
+    </script>
+    {% jsdata %}
+  </head>
+  <body>
+    <div id="main-mount"></div>
+    <script src="{% static "js/jsdata.js" %}"></script>
+    {% render_bundle 'main' %}
+  </body>
+</html>

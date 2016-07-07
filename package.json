@@ -1,5 +1,5 @@
 {
-  "name": "_project_",
+  "name": "",
   "version": "0.0.1",
   "description": "",
   "main": "",
@@ -64,7 +64,7 @@
     "type": "git",
     "url": ""
   },
-  "author": "Luke Hodkinson",
+  "author": "",
   "license": "",
   "homepage": ""
 }
