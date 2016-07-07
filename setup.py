@@ -53,7 +53,7 @@ def update_settings(args):
         'project': args.project,
     }
     os.mkdir(path)
-    # shutil.move(os.path.join(path, '..', 'settings.py'), path)
+    shutil.move(os.path.join(path, '..', 'settings.py'), path)
     shutil.copyfile(os.path.join(path, '..', 'settings.py'), os.path.join(path, 'settings.py'))
     os.symlink('../../../boilerplate/settings/boilerplate', os.path.join(path, 'boilerplate'))
     copy_file('boilerplate/settings/project.py', os.path.join(path, 'project.py'), data)
@@ -72,7 +72,8 @@ def update_urls(args):
     os.symlink('../../../boilerplate/urls/boilerplate', os.path.join(path, 'boilerplate'))
     shutil.copyfile('boilerplate/urls/urls.py', os.path.join(path, 'urls.py'))
     shutil.copyfile('boilerplate/urls/router.py', os.path.join(path, 'router.py'))
-    # os.remove(os.path.join(path, '..', 'urls.py'))
+    shutil.copyfile('boilerplate/urls/__init__.py', os.path.join(path, '__init__.py'))
+    os.remove(os.path.join(path, '..', 'urls.py'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

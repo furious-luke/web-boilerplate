@@ -5,12 +5,8 @@ services:
     build:
       args:
         project: $project
-    volumes:
-      - ../$project:/usr/local/app/$project
 
   web:
     build:
       args:
         project: $project
-    volumes:
-      - ../$project:/usr/local/app/$project
