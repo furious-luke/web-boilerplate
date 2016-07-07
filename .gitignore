@@ -58,23 +58,14 @@ target/
 
 # My stuff
 **~
-**.swp
-build-*
-**credentials.hh
 .project
 .pydevproject
-environ
 **db.sqlite3
 **.log
 **.out
 **.aux
-wiki/
 **/settings/local.py
-.bowerrc
-bower_components/
 media/
-endorsa/static
-ansible-git
 
 # Node
 node_modules
