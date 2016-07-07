@@ -54,7 +54,6 @@ def update_settings(args):
     }
     os.mkdir(path)
     shutil.move(os.path.join(path, '..', 'settings.py'), path)
-    shutil.copyfile(os.path.join(path, '..', 'settings.py'), os.path.join(path, 'settings.py'))
     os.symlink('../../../boilerplate/settings/boilerplate', os.path.join(path, 'boilerplate'))
     copy_file('boilerplate/settings/project.py', os.path.join(path, 'project.py'), data)
     shutil.copyfile('boilerplate/settings/base.py', os.path.join(path, 'base.py'))
