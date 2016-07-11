@@ -1,7 +1,7 @@
 import React from 'react'
 import { Route, IndexRoute } from 'react-router'
 
-import App from './boilerplate/components/app'
+import App from './components/app'
 import MainPage from './components/main-page'
 
 export default (
