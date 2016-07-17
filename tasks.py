@@ -122,12 +122,14 @@ def migrate(ctx, production=False):
 def make_migrations(ctx):
     """Check for outdated models.
     """
-    manage('makemigrations')
+    manage(ctx, 'makemigrations')
 
 
 @task
-def pdb(ctx):
-    run('{run} python3 manage.py runserver 0.0.0.0:8000'.format(**CONFIG))
+def pdb(ctx, production=False):
+    """Run with options to support pdb.
+    """
+    run_cfg('$run python3 manage.py runserver 0.0.0.0:8000', not production, pty=True)
 
 
 @task(help={

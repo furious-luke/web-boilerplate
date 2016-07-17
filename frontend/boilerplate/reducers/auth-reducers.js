@@ -1,6 +1,6 @@
 import { createReducer, asyncHandler } from 'redux-reusable'
 
-import authActions from '../actions/auth-actions'
+import { authActions } from '../actions/auth-actions'
 
 const userReducer = createReducer(
   {

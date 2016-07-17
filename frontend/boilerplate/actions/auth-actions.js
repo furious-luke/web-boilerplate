@@ -1,7 +1,7 @@
 import $ from 'jquery'
 import { asyncAction } from 'redux-reusable'
 
-const authActions = {
+export const authActions = {
 
   login: asyncAction(
     'LOGIN',
@@ -21,5 +21,3 @@ const authActions = {
     }
   )
 }
-
-export default authActions

@@ -1,1 +1,1 @@
-export * from './auth-actions'
+export * from '../boilerplate/actions'
