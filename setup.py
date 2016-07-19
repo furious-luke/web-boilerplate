@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import stat
 import shutil
@@ -113,3 +112,11 @@ if __name__ == '__main__':
     update_urls(args)
     # TODO: Keep existing permissions.
     os.chmod('.', 02775)
+
+    os.chdir('boilerplate')
+    try:
+        os.mkdir('keys')
+    except:
+        pass
+    subprocess.check_call('./scripts/gen_dev_ssc.sh')
+    os.chdir('..')
