@@ -18,31 +18,28 @@ services:
         short_workers: 1
         default_workers: 1
     environment:
-      - DJANGO_SETTINGS_MODULE=abas.settings.production
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=dummy
     links:
       - db
       - redis
-    volumes:
-      - ./var:/app/user/var
 
   web:
     build:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.cedar.web
-    command: 'bash -c ''gunicorn --keyfile=keys/dev.key --certfile=keys/dev.cert abas.wsgi:application'''
+    command: 'bash -c ''gunicorn --keyfile=keys/dev.key --certfile=keys/dev.cert $$WSGI_APP'''
     environment:
       - PORT=8080
       - WEB_CONCURRENCY=1
-      - DJANGO_SETTINGS_MODULE=abas.settings.production
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=dummy
     ports:
       - 8080:8080
     links:
       - db
       - redis
     volumes:
-      - ./var:/app/user/var
-      - ./keys:/app/user/keys
+      - ../keys:/app/user/keys

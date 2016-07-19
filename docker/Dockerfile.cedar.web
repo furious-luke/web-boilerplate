@@ -6,7 +6,7 @@ ENV PATH /app/.heroku/python/bin/:$PATH
 
 RUN mkdir -p /app/.heroku/python /app/.profile.d \
     /app/user/requirements/boilerplate /app/user/scripts \
-    /app/user/keys
+    /app/user/keys /app/user/var
 WORKDIR /app/user
 
 RUN curl -s https://lang-python.s3.amazonaws.com/cedar-14/runtimes/$PYTHON_VERSION.tar.gz | tar zx -C /app/.heroku/python
@@ -15,20 +15,25 @@ RUN curl -s https://bootstrap.pypa.io/get-pip.py | /app/.heroku/python/bin/pytho
 RUN echo 'export PATH=$HOME/.heroku/python/bin:$PATH PYTHONUNBUFFERED=true PYTHONHOME=/app/.heroku/python LIBRARY_PATH=/app/.heroku/vendor/lib:/app/.heroku/python/lib:$LIBRARY_PATH LD_LIBRARY_PATH=/app/.heroku/vendor/lib:/app/.heroku/python/lib:$LD_LIBRARY_PATH LANG=${LANG:-en_US.UTF-8} PYTHONHASHSEED=${PYTHONHASHSEED:-random} PYTHONPATH=${PYTHONPATH:-/app/user/}' > /app/.profile.d/python.sh
 RUN chmod +x /app/.profile.d/python.sh
 
-ADD boilerplate/requirements /app/user/requirements/boilerplate
+ADD boilerplate/requirements/boilerplate /app/user/requirements/boilerplate
 ADD requirements /app/user/requirements
 RUN /app/.heroku/python/bin/pip install -r requirements/production.txt
 
-COPY boilerplate/scripts/run_web.sh /app/user/scripts/
-COPY boilerplate/scripts/worker.conf /app/user/scripts/
+ADD boilerplate/scripts/run_web.sh /app/user/scripts/
+ADD boilerplate/scripts/worker.conf /app/user/scripts/
 
-WORKDIR /app/user
 COPY manage.py /app/user/
 COPY webpack-stats.production.json /app/user/
 
 ARG project
-COPY ${project} /app/user/${project}/
+ADD ${project} /app/user/${project}/
+RUN rm /app/user/${project}/main && \
+    rm /app/user/${project}/${project}/settings/boilerplate
+ADD boilerplate/main /app/user/${project}/main
+ADD boilerplate/settings/boilerplate /app/user/${project}/${project}/settings/boilerplate
 ENV PYTHONPATH=/app/user/${project}:$PYTHONPATH
+ENV DJANGO_SETTINGS_MODULE=${project}.settings.production
+ENV WSGI_APP=${project}.wsgi:application
 RUN echo 'export PYTHONPATH=/app/user/${project}/:$PYTHONPATH' >> /app/.profile.d/python.sh
 
 CMD [ "./scripts/run_web.sh" ]

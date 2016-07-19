@@ -1,4 +1,3 @@
-coverage==4.0.3
-model-mommy
-fake-factory
+coverage
+factory_boy
 selenium

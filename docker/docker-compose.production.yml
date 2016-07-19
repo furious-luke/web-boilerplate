@@ -9,39 +9,28 @@ services:
 
   worker:
     build:
-      context: .
-      dockerfile: ./Dockerfile.worker
-    environment:
-      - BACKUP_ENCRYPT_PW=testing
-      - HEROKU_TOOLBELT_API_EMAIL
-      - HEROKU_TOOLBELT_API_PASSWORD
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
+      context: ../..
+      dockerfile: ./boilerplate/docker/Dockerfile.worker
     links:
       - db
       - redis
     volumes:
-      - ./var:/usr/local/app/var
+      - ../../var:/app/user/var
 
   web:
     build:
-      context: .
-      dockerfile: ./Dockerfile.web
+      context: ../..
+      dockerfile: ./boilerplate/docker/Dockerfile.web
     environment:
       - PORT=8080
       - WEB_CONCURRENCY=1
       - KEYFILE=keys/dev.key
       - CERTFILE=keys/dev.cert
-      - BACKUP_ENCRYPT_PW=testing
-      - HEROKU_TOOLBELT_API_EMAIL
-      - HEROKU_TOOLBELT_API_PASSWORD
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
     ports:
       - 8080:8080
     links:
       - db
       - redis
     volumes:
-      - ./var:/usr/local/app/var
-      - ./keys:/usr/local/app/keys
+      - ../../var:/app/user/var
+      - ../keys:/app/user/keys
