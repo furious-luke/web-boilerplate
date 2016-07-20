@@ -8,6 +8,7 @@ import { syncHistoryWithStore } from 'react-router-redux'
 import routes from 'routes'
 import configureStore from './store'
 
+import 'bootstrap/dist/js/bootstrap.min'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
 const store = configureStore({

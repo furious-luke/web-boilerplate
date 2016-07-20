@@ -126,6 +126,13 @@ def make_migrations(ctx):
 
 
 @task
+def reset_db(ctx):
+    """Reset the database.
+    """
+    manage(ctx, 'reset_db')
+
+
+@task
 def pdb(ctx, production=False):
     """Run with options to support pdb.
     """
