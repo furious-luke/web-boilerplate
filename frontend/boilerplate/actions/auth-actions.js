@@ -1,5 +1,5 @@
-import $ from 'jquery'
-import { asyncAction } from 'redux-reusable'
+import $ from 'jquery';
+import { asyncAction } from 'redux-reusable';
 
 export const authActions = {
 
@@ -20,4 +20,4 @@ export const authActions = {
               .fail( failure );
     }
   )
-}
+};

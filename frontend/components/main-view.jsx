@@ -1,10 +1,10 @@
-import React, { Component, PropTypes } from 'react'
-import { Grid, Row, Col } from 'react-bootstrap'
-import CSSModules from 'react-css-modules'
+import React, { Component, PropTypes } from 'react';
+import { Grid, Row, Col } from 'react-bootstrap';
+import CSSModules from 'react-css-modules';
 
-import AuthenticatedComponent from '../boilerplate/components/auth/authenticated-component'
+import AuthenticatedComponent from '../boilerplate/components/auth/authenticated-component';
 
-import styles from './main-view.css'
+import styles from './main-view.css';
 
 class MainView extends Component {
   render() {

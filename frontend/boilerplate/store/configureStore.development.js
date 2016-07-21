@@ -1,10 +1,10 @@
-import { createStore, applyMiddleware, compose } from 'redux'
-import { persistState } from 'redux-devtools'
-import thunk from 'redux-thunk'
-import { browserHistory } from 'react-router'
-import { routerMiddleware } from 'react-router-redux'
-import rootReducer from 'reducers'
-import DevTools from '../components/dev-tools'
+import { createStore, applyMiddleware, compose } from 'redux';
+import { persistState } from 'redux-devtools';
+import thunk from 'redux-thunk';
+import { browserHistory } from 'react-router';
+import { routerMiddleware } from 'react-router-redux';
+import rootReducer from 'reducers';
+import DevTools from '../components/dev-tools';
 
 const enhancer = compose(
     applyMiddleware( thunk, routerMiddleware( browserHistory ) ),

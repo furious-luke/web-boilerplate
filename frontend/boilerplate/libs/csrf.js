@@ -1,5 +1,5 @@
-import $ from './jquery.wrapper'
-import 'jquery.cookie'
+import $ from './jquery.wrapper';
+import 'jquery.cookie';
 
 var csrfSettings = {
   token: $.cookie( 'csrftoken' ) || 'NO-CSRF-TOKEN'
@@ -15,4 +15,4 @@ $.ajaxSetup({
     }
 });
 
-export default csrfSettings
+export default csrfSettings;
