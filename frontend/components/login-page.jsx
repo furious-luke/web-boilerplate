@@ -1,9 +1,9 @@
-import React, { PropTypes } from 'react'
-import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux-reusable'
+import React, { PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux-reusable';
 
-import authActions from '../actions/auth-actions'
-import LoginForm from '../components/auth/login-form'
+import authActions from '../actions/auth-actions';
+import LoginForm from '../components/auth/login-form';
 
 function mapStateToProps( state ) {
   const { auth: authCtr } = state;

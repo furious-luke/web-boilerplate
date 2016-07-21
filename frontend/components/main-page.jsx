@@ -1,8 +1,8 @@
-import React, { PropTypes } from 'react'
-import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux-reusable'
+import React, { PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux-reusable';
 
-import MainView from './main-view'
+import MainView from './main-view';
 
 function mapStateToProps( state ) {
   return {

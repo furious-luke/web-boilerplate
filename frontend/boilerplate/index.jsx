@@ -1,19 +1,19 @@
 // Bootstrap CSS comes first so that we can override
 // it with other things.
-import 'bootstrap/dist/css/bootstrap.min.css'
-import 'font-awesome/css/font-awesome.min.css'
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'font-awesome/css/font-awesome.min.css';
 
-import './libs/csrf'
-import React from 'react'
-import { render } from 'react-dom'
-import { Provider } from 'react-redux'
-import { Router, browserHistory } from 'react-router'
-import { syncHistoryWithStore } from 'react-router-redux'
+import './libs/csrf';
+import React from 'react';
+import { render } from 'react-dom';
+import { Provider } from 'react-redux';
+import { Router, browserHistory } from 'react-router';
+import { syncHistoryWithStore } from 'react-router-redux';
 
-import routes from 'routes'
-import configureStore from './store'
+import routes from 'routes';
+import configureStore from './store';
 
-import 'bootstrap/dist/js/bootstrap.min'
+import 'bootstrap/dist/js/bootstrap.min';
 
 const store = configureStore({
   auth: {

@@ -1,1 +1,1 @@
-export * from '../boilerplate/actions'
+export * from '../boilerplate/actions';

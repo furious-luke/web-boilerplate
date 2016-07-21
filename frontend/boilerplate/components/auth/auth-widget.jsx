@@ -1,8 +1,8 @@
-import React, { Component, PropTypes } from 'react'
-import { push } from 'react-router-redux'
-import CSSModules from 'react-css-modules'
+import React, { Component, PropTypes } from 'react';
+import { push } from 'react-router-redux';
+import CSSModules from 'react-css-modules';
 
-import styles from './auth-widget.css'
+import styles from './auth-widget.css';
 
 class AuthWidget extends Component {
 
@@ -21,4 +21,4 @@ class AuthWidget extends Component {
   }
 }
 
-export default CSSModules( AuthWidget, styles )
+export default CSSModules( AuthWidget, styles );
