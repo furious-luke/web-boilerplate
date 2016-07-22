@@ -77,6 +77,13 @@ def up(ctx, service=None, production=False):
     run_cfg(cmd, not production)
 
 
+@task
+def logs(ctx):
+    """
+    """
+    run_cfg('$compose logs', True)
+
+
 @task(aliases=['ut'])
 def unit_test(ctx):
     """Run unit-tests.

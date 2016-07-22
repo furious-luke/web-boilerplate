@@ -25,6 +25,18 @@ SELENIUM_REMOTE = 'http://selenium:4444/wd/hub/'
 TEST_RUNNER = 'supertest.runner.SuperTestRunner'
 
 
+# Loggers
+
+LOGGING['root']['level'] = 'DEBUG'
+
+LOGGING['loggers'] = {
+    'django.request': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    }
+}
+
+
 try:
     from .local import *
 except:
