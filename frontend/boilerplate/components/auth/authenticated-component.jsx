@@ -1,11 +1,11 @@
-import csrfSettings from '../../libs/csrf'
-import React, { Component } from 'react'
-import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux-reusable'
+import csrfSettings from '../../libs/csrf';
+import React, { Component } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux-reusable';
 
-import authActions from '../../actions/auth-actions'
-import LoginForm from './login-form'
-import AuthWidget from './auth-widget'
+import { authActions } from '../../actions/auth-actions';
+// import LoginForm from './login-form';
+// import AuthWidget from './auth-widget';
 
 function mapStateToProps( state ) {
   const { auth } = state;
@@ -20,7 +20,7 @@ function mapDispatchToProps( dispatch ) {
   };
 }
 
-export default ( ComposedComponent ) => {
+export default ( ComposedComponent, LoginView ) => {
   return connect( mapStateToProps, mapDispatchToProps )(
     class AuthenticatedComponent extends Component {
       render() {
@@ -31,14 +31,11 @@ export default ( ComposedComponent ) => {
           if( csrf_token )
             csrfSettings.token = csrf_token;
           return (
-            <div>
-              <AuthWidget auth={ auth } authActions={ authActions } />
-              <ComposedComponent { ...props } authUser={ user } />;
-            </div>
+            <ComposedComponent { ...props } authUser={ user } />
           );
         }
         else
-          return <LoginForm auth={ auth } error={ authError } loading={ authLoading } authActions={ authActions } />;
+          return <LoginView auth={ auth } error={ authError } loading={ authLoading } authActions={ authActions } />;
       }
     }
   );
