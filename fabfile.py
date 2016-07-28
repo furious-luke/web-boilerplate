@@ -1,6 +1,6 @@
 from string import Template
 
-from invoke import run, task
+from fabric.api import run, task, local
 
 
 BASE_CONFIG = {
@@ -52,13 +52,12 @@ def prod_cfg(*args):
 def run_cfg(cmd, dev=True, pty=False, **kwargs):
     cfg = dev_cfg(kwargs) if dev else prod_cfg(kwargs)
     cmd = Template(cmd).substitute(cfg)
-    print(cmd)
-    run(cmd, pty=pty)
+    # print(cmd)
+    local(cmd)
 
 
-@task(help={'no-cache': 'Disable docker cache.',
-            'production': 'Build production version.'})
-def build(ctx, no_cache=False, production=False):
+@task
+def build(no_cache=False, production=False):
     """Build the docker containers.
     """
     opts = ''
@@ -67,8 +66,8 @@ def build(ctx, no_cache=False, production=False):
     run_cfg('$compose build{}'.format(opts), not production)
 
 
-@task(help={'production': 'Launch production version.'})
-def up(ctx, service=None, production=False):
+@task
+def up(service=None, production=False):
     """Launch the server.
     """
     cmd = '$compose up'
@@ -78,26 +77,26 @@ def up(ctx, service=None, production=False):
 
 
 @task
-def logs(ctx):
+def logs():
     """
     """
     run_cfg('$compose logs', True)
 
 
-@task(aliases=['ut'])
-def unit_test(ctx):
+@task(alias='ut')
+def unit_test():
     """Run unit-tests.
     """
     run_cfg('$manage test')
 
 
-@task(aliases=['it'])
-def integration_test(ctx):
+@task(alias='it')
+def integration_test():
     run('{test} test --test=integration'.format(**CONFIG))
 
 
-@task(aliases=['nt'])
-def node_test(ctx):
+@task(alias='nt')
+def node_test():
     run('{run} npm run test'.format(**CONFIG))
 
 
@@ -106,79 +105,76 @@ def node_test(ctx):
 #     run('{run} {}'.format(cmd, **CONFIG))
 
 
-@task(help={'production': 'Run command on production.'})
-def manage(ctx, cmd, production=False):
+@task
+def manage(cmd, production=False):
     """Run a management command.
     """
     run_cfg('$manage {}'.format(cmd), not production, pty=True)
 
 
-@task(aliases=['sp'])
-def shell_plus(ctx):
+@task(alias='sp')
+def shell_plus():
     manage('shell_plus')
 
 
-@task(help={'production': 'Migrate production database.'})
-def migrate(ctx, production=False):
+@task
+def migrate(production=False):
     """Migrate the database.
     """
     run_cfg('$manage migrate', not production)
 
 
-@task(aliases=['mm'])
-def make_migrations(ctx):
+@task(alias='mm')
+def make_migrations():
     """Check for outdated models.
     """
-    manage(ctx, 'makemigrations')
+    manage('makemigrations')
 
 
 @task
-def reset_db(ctx):
+def reset_db():
     """Reset the database.
     """
-    manage(ctx, 'reset_db')
+    manage('reset_db')
 
 
 @task
-def pdb(ctx, production=False):
+def pdb(production=False):
     """Run with options to support pdb.
     """
     run_cfg('$run python3 manage.py runserver 0.0.0.0:8000', not production, pty=True)
 
 
-@task(help={
-    'service': 'Which service to start.',
-    'production': 'Start command-line in production container.'
-})
-def cli(ctx, service='web', production=False):
+@task
+def cli(service='web', production=False):
     """Open a terminal in the container.
     """
     run_cfg('$run bash', not production, pty=True, service=service)
 
 
-@task(aliases=['cs'])
-def collect_static(ctx):
+@task(alias='cs')
+def collect_static():
     """Collect static files (usually to S3).
     """
     run_cfg('$run ./manage.py collectstatic', production=True)
 
 
 @task
-def deploy(ctx):
+def deploy():
     """Deploy production to Heroku.
     """
     run('./scripts/release.sh')
 
 
-@task(help={'production': 'Stop production containers.'})
-def down(ctx, production=False):
+@task
+def down(production=False):
     """Stop all running containers.
     """
     run_cfg('$compose stop', not production)
 
 
-@task(help={'production': 'Remove production containers.'})
-def kill(ctx, production=False):
+@task
+def kill(production=False):
     """Remove containers.
     """
     down()
