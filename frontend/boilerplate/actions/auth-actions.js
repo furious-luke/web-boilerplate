@@ -1,3 +1,4 @@
+import csrfSettings from '../libs/csrf';
 import $ from 'jquery';
 import { asyncAction } from 'redux-reusable';
 
@@ -7,7 +8,12 @@ export const authActions = {
     'LOGIN',
     ( dispatch, getState, success, failure, data ) => {
       return $.post({ url: '/login/', data: data, dataType: 'json' })
-              .done( success )
+              .done( response => {
+                const { csrf_token } = response;
+                if( csrf_token )
+                  csrfSettings.token = csrf_token;
+                return success( response );
+              })
               .fail( failure );
     }
   ),

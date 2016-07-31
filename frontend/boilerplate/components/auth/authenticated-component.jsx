@@ -1,4 +1,3 @@
-import csrfSettings from '../../libs/csrf';
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux-reusable';
@@ -26,12 +25,10 @@ export default ( ComposedComponent, LoginView ) => {
       render() {
         const { auth: authCtr, authActions, ...props } = this.props;
         const { auth, authLoading, authError } = authCtr || {};
-        const { user, csrf_token } = auth || {};
+        const { user } = auth || {};
         if( user ) {
-          if( csrf_token )
-            csrfSettings.token = csrf_token;
           return (
-            <ComposedComponent { ...props } authUser={ user } />
+            <ComposedComponent { ...props } authUser={ user } authActions={ authActions } />
           );
         }
         else
