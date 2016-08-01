@@ -3,6 +3,7 @@ import os
 import stat
 import shutil
 import argparse
+import subprocess
 from string import Template
 
 
@@ -102,7 +103,7 @@ if __name__ == '__main__':
         ('frontend/routes.jsx', 'frontend/routes.jsx'),
     ])
     copy_files([
-        ('local_tasks.py', 'tasks.py'),
+        ('local_fabfile.py', 'fabfile.py'),
         'docker/docker-compose.project.yml',
         ('local_manage.py', 'manage.py'),
         '.dockerignore',
