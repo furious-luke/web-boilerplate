@@ -6,7 +6,7 @@ CMD [ "/sbin/my_init" ]
 
 RUN mkdir -p /usr/local/app/var /usr/local/app/webpack \
              /etc/service/hotserver && \
-    curl -sL https://deb.nodesource.com/setup_5.x | sh - && \
+    curl -sL https://deb.nodesource.com/setup_6.x | bash - && \
     apt-get -y install nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
