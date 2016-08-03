@@ -10,13 +10,21 @@
     <meta name="author" content="{% block author %}{% endblock %}">
     <title>{% block title %}Web Boilerplate{% endblock %}</title>
     <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png" />
+    <style type="text/css">
+      {% block style %}{% endblock %}
+    </style>
     <script>
       var csrf = "{% csrf_token %}";
     </script>
     {% jsdata %}
+    <script>
+      {% block script %}{% endblock %}
+    </script>
   </head>
   <body>
-    <div id="main-mount"></div>
+    {% block mount %}
+      <div id="main-mount"></div>
+    {% endblock %}
     <script src="{% static "js/jsdata.js" %}"></script>
     {% render_bundle 'main' %}
   </body>

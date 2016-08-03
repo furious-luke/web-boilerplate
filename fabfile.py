@@ -1,6 +1,10 @@
+import os
+import shutil
+import tempfile
 from string import Template
 
 from fabric.api import run, task, local
+import boto3
 
 
 BASE_CONFIG = {
@@ -59,12 +63,27 @@ def run_cfg(cmd, dev=True, pty=False, **kwargs):
 @task
 def build(no_cache=False, production=False):
     """Build the docker containers.
-    """
-    opts = ''
-    if no_cache:
-        opts += ' --no-cache'
-    run_cfg('$compose build{}'.format(opts), not production)
 
+    Need to use a shitty hack to get around symlinks. Use tar to
+    convert symlinked directories into the actual data.
+    """
+    def _build(production):
+        opts = ''
+        if no_cache:
+            opts += ' --no-cache'
+        run_cfg('$compose build{}'.format(opts), not production)
+    if production:
+        old_dir = os.getcwd()
+        new_dir = tempfile.mkdtemp()
+        os.system('tar ch . | tar xC {}'.format(new_dir))
+        os.chdir(new_dir)
+        try:
+            _build(production)
+        finally:
+            os.chdir(old_dir)
+            shutil.rmtree(new_dir)
+    else:
+        _build(production)
 
 @task
 def up(service=None, production=False):
@@ -152,11 +171,40 @@ def cli(service='web', production=False):
     run_cfg('$run bash', not production, pty=True, service=service)
 
 
+@task(alias='sb')
+def setup_bucket():
+    """Prepare an S3 bucket.
+    """
+    input('Warning: Please set your default AWS account appropriately. '
+          'Press enter to continue...')
+
+    s3 = boto3.resource('s3')
+    bucket_name = '{}-static'.format(BASE_CONFIG['project'])
+    bucket = s3.create_bucket(Bucket=bucket_name)
+
+    cors = bucket.Cors()
+    cors.put(CORSConfiguration={
+        'CORSRules': [{
+            'AllowedMethods': ['GET'],
+            'AllowedOrigins': ['*'],
+            'MaxAgeSeconds': 3000,
+            'AllowedHeaders': ['Authorization'],
+        }]
+    })
+    cors.delete()
+
+    with open('boilerplate/scripts/bucket-policy-public.json', 'r') as inf:
+        data = Template(inf.read()).substitute(bucket_name=bucket_name)
+    policy = bucket.Policy()
+    policy.put(Policy=data)
+    policy.delete()
+
+
 @task(alias='cs')
 def collect_static():
     """Collect static files (usually to S3).
     """
-    run_cfg('$run ./manage.py collectstatic', production=True)
+    run_cfg('$manage collectstatic', False)
 
 
 @task

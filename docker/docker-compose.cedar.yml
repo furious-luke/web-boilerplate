@@ -36,6 +36,8 @@ services:
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=dummy
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
     ports:
       - 8080:8080
     links:
@@ -43,3 +45,5 @@ services:
       - redis
     volumes:
       - ../keys:/app/user/keys
+      - ..:/app/user/boilerplate
+      - ../../var:/app/user/var

@@ -30,12 +30,14 @@ class IndexView(APIViewMixin, TemplateView):
     template_name = 'index.html'
 
     def get_jsdata(self):
-        data = {}
+        data = {
+            'static': settings.STATIC_URL
+        }
         if self.request.user.is_authenticated():
             user = self.request.user
             data['user'] = {
                 'id': user.id,
                 'username': user.username,
-                'email': user.email
+                'email': user.email,
             }
         return super().get_jsdata(**data)

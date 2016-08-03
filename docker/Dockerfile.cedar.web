@@ -6,7 +6,7 @@ ENV PATH /app/.heroku/python/bin/:$PATH
 
 RUN mkdir -p /app/.heroku/python /app/.profile.d \
     /app/user/requirements/boilerplate /app/user/scripts \
-    /app/user/keys /app/user/var
+    /app/user/keys /app/user/var /app/user/boilerplate
 WORKDIR /app/user
 
 RUN curl -s https://lang-python.s3.amazonaws.com/cedar-14/runtimes/$PYTHON_VERSION.tar.gz | tar zx -C /app/.heroku/python
@@ -27,10 +27,8 @@ COPY webpack-stats.production.json /app/user/
 
 ARG project
 ADD ${project} /app/user/${project}/
-RUN rm /app/user/${project}/main && \
-    rm /app/user/${project}/${project}/settings/boilerplate
-ADD boilerplate/main /app/user/${project}/main
-ADD boilerplate/settings/boilerplate /app/user/${project}/${project}/settings/boilerplate
+ADD boilerplate/__init__.py /app/user/boilerplate
+ADD boilerplate/manage.py /app/user/boilerplate
 ENV PYTHONPATH=/app/user/${project}:$PYTHONPATH
 ENV DJANGO_SETTINGS_MODULE=${project}.settings.production
 ENV WSGI_APP=${project}.wsgi:application
