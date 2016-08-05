@@ -1,10 +1,12 @@
 import os
 import shutil
 import tempfile
+import datetime
 from string import Template
 
 from fabric.api import run, task, local
 import boto3
+from boto.s3.key import Key
 
 
 BASE_CONFIG = {
@@ -53,11 +55,11 @@ def prod_cfg(*args):
     return merge_cfgs(BASE_CONFIG, PROD_CONFIG, *args)
 
 
-def run_cfg(cmd, dev=True, pty=False, **kwargs):
+def run_cfg(cmd, dev=True, capture=False, **kwargs):
     cfg = dev_cfg(kwargs) if dev else prod_cfg(kwargs)
     cmd = Template(cmd).substitute(cfg)
     # print(cmd)
-    local(cmd)
+    return local(cmd, capture=capture)
 
 
 @task
@@ -128,7 +130,7 @@ def node_test():
 def manage(cmd, production=False):
     """Run a management command.
     """
-    run_cfg('$manage {}'.format(cmd), not production, pty=True)
+    run_cfg('$manage {}'.format(cmd), not production)
 
 
 @task(alias='sp')
@@ -161,14 +163,14 @@ def reset_db():
 def pdb(production=False):
     """Run with options to support pdb.
     """
-    run_cfg('$run python3 manage.py runserver 0.0.0.0:8000', not production, pty=True)
+    run_cfg('$run python3 manage.py runserver 0.0.0.0:8000', not production)
 
 
 @task
 def cli(service='web', production=False):
     """Open a terminal in the container.
     """
-    run_cfg('$run bash', not production, pty=True, service=service)
+    run_cfg('$run bash', not production, service=service)
 
 
 @task(alias='sb')
@@ -227,3 +229,39 @@ def kill(production=False):
     """
     down()
     run_cfg('$compose rm -fv', not production)
+
+
+@task
+def dump_db(filename):
+    run_cfg('$compose up -d db')
+    res = run_cfg('$compose ps | grep db | awk \'{{print $$1}}\' | head -n1',
+                  capture=True)
+    db_name = res.strip()
+    cmd = ('pg_dump -Fc --no-acl --no-owner -h 0.0.0.0 -U postgres postgres > '
+           '/share/{filename}').format(filename=filename)
+    fullcmd = 'docker exec {container_name} sh -c "{cmd}"'.format(
+        container_name=db_name, cmd=cmd
+    )
+    res = local(fullcmd, capture=True)
+    run_cfg('$compose stop db')
+
+
+@task
+def upload_s3(filename, bucket_name, remote_key):
+    s3 = boto3.client('s3')
+    s3.upload_file(filename, bucket_name, remote_key)
+    url = s3.generate_presigned_url('get_object', Params={
+        'Bucket': bucket_name, 'Key': remote_key
+    })
+    return url
+
+
+@task
+def deploy_db(app, bucket_name):
+    now = datetime.datetime.now()
+    filename = 'db-{}.dump'.format(now.strftime('%Y%m%d%H%M'))
+    dump_db(filename)
+    remote_key = 'imports/{}.dump'.format(now.strftime('%Y%m%d%h%i'))
+    filename = 'var/{}'.format(filename)
+    s3path = upload_s3(filename, bucket_name, remote_key)
+    local('heroku pg:backups -a {app} restore "{filename}" DATABASE_URL'.format(filename=s3path, app=app))

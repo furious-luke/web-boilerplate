@@ -31,8 +31,11 @@ export default ( ComposedComponent, LoginView ) => {
             <ComposedComponent { ...props } authUser={ user } authActions={ authActions } />
           );
         }
-        else
+        else {
+          if( !LoginView )
+            LoginView = require( './login-form' ).default;
           return <LoginView auth={ auth } error={ authError } loading={ authLoading } authActions={ authActions } />;
+        }
       }
     }
   );

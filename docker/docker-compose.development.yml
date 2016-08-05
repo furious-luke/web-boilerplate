@@ -5,6 +5,8 @@ services:
 
   db:
     image: aidanlister/postgres-hstore:latest
+    volumes:
+      - ../../var:/share
 
   redis:
     image: redis:alpine
