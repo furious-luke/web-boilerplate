@@ -159,6 +159,13 @@ def reset_db():
     manage('reset_db')
 
 
+@task(alias='csu')
+def create_superuser():
+    """Create a super user.
+    """
+    manage('createsuperuser')
+
+
 @task
 def pdb(production=False):
     """Run with options to support pdb.
