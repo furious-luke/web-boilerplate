@@ -1,4 +1,4 @@
-Django==1.9.2
+Django==1.10
 django-extensions
 djangorestframework
 Pillow
@@ -8,9 +8,8 @@ six
 dj-database-url
 redis
 django-redis
--e git+https://github.com/ABASystems/django-rq#egg=django-rq
-rq-scheduler
-django-hstore
+celery
+-e git+http://github.com/ABASystems/django-celery#egg=django-celery
 psycopg2
 -e git+https://github.com/furious-luke/django-supertest#egg=django-supertest
 -e git+https://github.com/furious-luke/django-jsdata#egg=django-jsdata

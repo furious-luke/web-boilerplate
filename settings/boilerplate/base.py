@@ -13,17 +13,16 @@ VAR_DIR = os.path.join(dn(BASE_DIR), 'var')
 
 # Application definition
 
-INSTALLED_APPS += [
+INSTALLED_APPS = [
     'main',
     'xauth',
     'jsdata',
     'rest_framework',
     'django_extensions',
     'webpack_loader',
-    'django_rq',
-    'django_hstore',
     'storages',
-]
+    'django.contrib.postgres',
+] + INSTALLED_APPS
 
 ROOT_URLCONF = PROJECT + '.urls.urls'
 
@@ -89,7 +88,7 @@ REST_FRAMEWORK = {
 }
 
 
-# Django RQ/REDIS
+# Django REDIS
 
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379')
 
@@ -101,17 +100,6 @@ CACHES = {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
     }
-}
-
-RQ_QUEUES = {
-    'short': {
-        'USE_REDIS_CACHE': 'default',
-        'DEFAULT_TIMEOUT': '180',
-    },
-    'default': {
-        'USE_REDIS_CACHE': 'default',
-        'DEFAULT_TIMEOUT': '900',
-    },
 }
 
 
