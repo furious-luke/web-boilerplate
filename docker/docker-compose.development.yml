@@ -26,6 +26,8 @@ services:
       dockerfile: boilerplate/docker/Dockerfile.development
       args:
         run: worker
+    environment:
+      - WORKER_CONCURRENCY=1
     links:
       - db
       - redis

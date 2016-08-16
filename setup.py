@@ -71,6 +71,7 @@ def update_urls(args):
     os.symlink('../../../boilerplate/urls/boilerplate', os.path.join(path, 'boilerplate'))
     shutil.copyfile('boilerplate/urls/urls.py', os.path.join(path, 'urls.py'))
     shutil.copyfile('boilerplate/urls/router.py', os.path.join(path, 'router.py'))
+    shutil.copyfile('boilerplate/urls/channels.py', os.path.join(path, 'channels.py'))
     shutil.copyfile('boilerplate/urls/__init__.py', os.path.join(path, '__init__.py'))
     os.remove(os.path.join(path, '..', 'urls.py'))
 
@@ -91,6 +92,7 @@ if __name__ == '__main__':
         'boilerplate/.dockerignore',
         ('../boilerplate/frontend/boilerplate', 'frontend/boilerplate'),
         ('../boilerplate/main', os.path.join(args.project, 'main')),
+        'boilerplate/scripts'
     ])
     copy_files([
         'package.json',

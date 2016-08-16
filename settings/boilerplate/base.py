@@ -21,8 +21,12 @@ INSTALLED_APPS = [
     'django_extensions',
     'webpack_loader',
     'storages',
-    'django.contrib.postgres',
+    'django.contrib.postgres'
 ] + INSTALLED_APPS
+
+INSTALLED_APPS = INSTALLED_APPS + [
+    'channels'
+]
 
 ROOT_URLCONF = PROJECT + '.urls.urls'
 
@@ -120,7 +124,7 @@ CHANNEL_LAYERS = {
         'CONFIG': {
             'hosts': [REDIS_URL]
         },
-        'ROUTING': PROJECT + '.urls.channels'
+        'ROUTING': PROJECT + '.urls.channels.channel_routing'
     }
 }
 

@@ -5,7 +5,7 @@ ENV PYTHON_VERSION python-3.5.1
 ENV PATH /app/.heroku/python/bin/:$PATH
 
 RUN mkdir -p /app/.heroku/python /app/.profile.d \
-    /app/user/requirements/boilerplate /app/user/scripts \
+    /app/user/requirements/boilerplate \
     /app/user/keys /app/user/var /app/user/boilerplate
 WORKDIR /app/user
 
@@ -18,9 +18,6 @@ RUN chmod +x /app/.profile.d/python.sh
 ADD boilerplate/requirements/boilerplate /app/user/requirements/boilerplate
 ADD requirements /app/user/requirements
 RUN /app/.heroku/python/bin/pip install -r requirements/production.txt
-
-ADD boilerplate/scripts/run_web.sh /app/user/scripts/
-ADD boilerplate/scripts/worker.conf /app/user/scripts/
 
 COPY manage.py /app/user/
 COPY webpack-stats.production.json /app/user/

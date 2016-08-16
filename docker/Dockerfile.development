@@ -21,8 +21,6 @@ RUN apt-get -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN echo /root > /etc/container_environment/HOME
 
-# ADD manage.py /usr/local/app/
-# ADD boilerplate/scripts /usr/local/app/scripts/
 WORKDIR /usr/local/app
 EXPOSE 8000
 
