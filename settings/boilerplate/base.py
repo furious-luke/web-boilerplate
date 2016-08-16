@@ -112,6 +112,19 @@ AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
 
 
+# Channels
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'asgi_redis.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [REDIS_URL]
+        },
+        'ROUTING': PROJECT + '.urls.channels'
+    }
+}
+
+
 # Loggers
 
 LOGGING = {

@@ -3,8 +3,11 @@
 version: '2'
 services:
 
+
   db:
-    image: aidanlister/postgres-hstore:latest
+    image: postgres:latest
+    volumes:
+      - ../../var:/share
 
   redis:
     image: redis:alpine
@@ -12,11 +15,9 @@ services:
   worker:
     build:
       context: ../..
-      dockerfile: boilerplate/docker/Dockerfile.cedar.worker
+      dockerfile: boilerplate/docker/Dockerfile.cedar
       args:
-        scheduler: 0
-        short_workers: 1
-        default_workers: 1
+        run: worker
     environment:
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
@@ -28,8 +29,9 @@ services:
   web:
     build:
       context: ../..
-      dockerfile: boilerplate/docker/Dockerfile.cedar.web
-    command: 'bash -c ''gunicorn --keyfile=keys/dev.key --certfile=keys/dev.cert $$WSGI_APP'''
+      dockerfile: boilerplate/docker/Dockerfile.cedar
+      args:
+        run: web
     environment:
       - PORT=8080
       - WEB_CONCURRENCY=1

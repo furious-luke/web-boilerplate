@@ -31,10 +31,6 @@ services:
       - redis
     volumes:
       - ../..:/usr/local/app
-    environment:
-      - SCHEDULER=1
-      - SHORT_WORKERS=1
-      - DEFAULT_WORKERS=1
 
   web:
     build:

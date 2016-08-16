@@ -31,7 +31,8 @@ ADD boilerplate/__init__.py /app/user/boilerplate
 ADD boilerplate/manage.py /app/user/boilerplate
 ENV PYTHONPATH=/app/user/${project}:$PYTHONPATH
 ENV DJANGO_SETTINGS_MODULE=${project}.settings.production
-ENV WSGI_APP=${project}.wsgi:application
+ENV ASGI_APP=${project}.asgi:channel_layer
 RUN echo 'export PYTHONPATH=/app/user/${project}/:$PYTHONPATH' >> /app/.profile.d/python.sh
 
-CMD [ "./scripts/run_web.sh" ]
+ARG run
+CMD [ "./scripts/${run}.sh" ]
