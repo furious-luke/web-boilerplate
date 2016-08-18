@@ -1,1 +1,1 @@
-daphne
+-e git+https://github.com/furious-luke/daphne#egg=daphne

@@ -3,7 +3,6 @@
 version: '2'
 services:
 
-
   db:
     image: postgres:latest
     volumes:
@@ -22,6 +21,7 @@ services:
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=dummy
+      - WORKER_CONCURRENCY=1
     links:
       - db
       - redis
@@ -46,6 +46,14 @@ services:
       - db
       - redis
     volumes:
-      - ../keys:/app/user/keys
       - ..:/app/user/boilerplate
       - ../../var:/app/user/var
+
+  nginx:
+    image: furiousluke/nginx:latest
+    ports:
+      - 8443:443
+    links:
+      - web
+    volumes:
+      - ../keys:/etc/nginx/keys

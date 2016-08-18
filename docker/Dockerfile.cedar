@@ -19,8 +19,9 @@ ADD boilerplate/requirements/boilerplate /app/user/requirements/boilerplate
 ADD requirements /app/user/requirements
 RUN /app/.heroku/python/bin/pip install -r requirements/production.txt
 
-COPY manage.py /app/user/
-COPY webpack-stats.production.json /app/user/
+ADD manage.py /app/user/
+ADD webpack-stats.production.json /app/user/
+ADD scripts /app/user/scripts/
 
 ARG project
 ADD ${project} /app/user/${project}/
@@ -32,4 +33,5 @@ ENV ASGI_APP=${project}.asgi:channel_layer
 RUN echo 'export PYTHONPATH=/app/user/${project}/:$PYTHONPATH' >> /app/.profile.d/python.sh
 
 ARG run
-CMD [ "./scripts/${run}.sh" ]
+ENV RUN=${run}
+CMD ./scripts/${RUN}.sh
