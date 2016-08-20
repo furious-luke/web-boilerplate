@@ -19,5 +19,5 @@ django-webpack-loader
 redis
 redlock-py
 django-redis
--e git+https://github.com/andrewgodwin/channels#egg=channels
+-e git+https://github.com/furious-luke/channels#egg=channels
 asgi_redis
