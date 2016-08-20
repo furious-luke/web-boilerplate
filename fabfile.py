@@ -105,10 +105,10 @@ def logs():
 
 
 @task(alias='ut')
-def unit_test():
+def unit_test(module=''):
     """Run unit-tests.
     """
-    run_cfg('$manage test')
+    run_cfg('$manage test {}'.format(module))
 
 
 @task(alias='it')

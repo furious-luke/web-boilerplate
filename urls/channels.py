@@ -1,6 +1,4 @@
-from channels.routing import route
-
+from channels.routing import route, include
 
 channel_routing = [
-    # route('http.request', '')
 ]
