@@ -122,7 +122,10 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'asgi_redis.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [REDIS_URL]
+            'hosts': [REDIS_URL],
+            'channel_capacity': {
+                'cq-tasks': 1000
+            }
         },
         'ROUTING': PROJECT + '.urls.channels.channel_routing'
     }

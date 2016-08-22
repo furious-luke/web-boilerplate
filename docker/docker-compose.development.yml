@@ -27,7 +27,7 @@ services:
       args:
         run: worker
     environment:
-      - WORKER_CONCURRENCY=1
+      - WORKER_CONCURRENCY=3
     links:
       - db
       - redis
@@ -44,6 +44,7 @@ services:
       - db
       - redis
       - hot
+      - worker
     ports:
       - 8000:8000
     volumes:
