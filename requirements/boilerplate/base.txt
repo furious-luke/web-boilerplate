@@ -21,3 +21,4 @@ redlock-py
 django-redis
 -e git+https://github.com/furious-luke/channels#egg=channels
 -e git+https://github.com/andrewgodwin/asgi_redis#egg=asgi_redis
+-e git+https://github.com/furious-luke/django-cq#egg=django-cq
