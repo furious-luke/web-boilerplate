@@ -13,20 +13,22 @@ BASE_CONFIG = {
     'compose': 'docker-compose -f $compose_file -f $compose_project_file -p $docker_project',
     'compose_project_file': 'docker-compose.project.yml',
     'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
-    'service': 'web',
+    'service': 'web'
 }
 
 DEV_CONFIG = {
     'docker_project': '${project}_dev',
     'compose_file': 'boilerplate/docker/docker-compose.development.yml',
     'manage': '$run python3 -W ignore manage.py',
+    'coverage': '$run coverage run --source="$project" manage.py test',
+    'covhtml': '$run coverage html'
 }
 
 PROD_CONFIG = {
     'docker_project': '$project',
     'compose_file': 'boilerplate/docker/docker-compose.cedar.yml',
     'run': '$compose run --rm --service-ports $service',
-    'manage': '$run python3 -W ignore manage.py',
+    'manage': '$run python3 -W ignore manage.py'
 }
 
 
@@ -109,6 +111,14 @@ def unit_test(module=''):
     """Run unit-tests.
     """
     run_cfg('$manage test {}'.format(module))
+
+
+@task(alias='cov')
+def coverage(module=''):
+    """Run unit-tests.
+    """
+    run_cfg('$coverage {}'.format(module))
+    run_cfg('$covhtml')
 
 
 @task(alias='it')
