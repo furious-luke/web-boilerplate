@@ -159,11 +159,3 @@ LOGGING = {
         },
     },
 }
-
-
-# Sensitive data.
-
-try:
-    from .local import *
-except ImportError:
-    pass
