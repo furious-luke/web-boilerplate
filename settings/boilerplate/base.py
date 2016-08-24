@@ -15,6 +15,7 @@ VAR_DIR = os.path.join(dn(BASE_DIR), 'var')
 
 INSTALLED_APPS = [
     'main',
+    'cq',
     'xauth',
     'jsdata',
     'rest_framework',
