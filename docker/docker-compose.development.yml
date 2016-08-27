@@ -10,6 +10,8 @@ services:
 
   redis:
     image: redis:alpine
+    ports:
+      - 6379:6379
 
   hot:
     build:
@@ -27,7 +29,10 @@ services:
       args:
         run: worker
     environment:
-      - WORKER_CONCURRENCY=1
+      - WEB_PROCESSES=1
+      - WEB_THREADS=1
+      - WORKER_PROCESSES=1
+      - WORKER_THREADS=5
     links:
       - db
       - redis

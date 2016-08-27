@@ -13,7 +13,7 @@ BASE_CONFIG = {
     'compose': 'docker-compose -f $compose_file -f $compose_project_file -p $docker_project',
     'compose_project_file': 'docker-compose.project.yml',
     'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
-    'service': 'web'
+    'service': 'worker'
 }
 
 DEV_CONFIG = {
