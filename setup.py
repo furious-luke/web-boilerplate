@@ -22,6 +22,7 @@ def copy_file(src, dst, data=None):
     else:
         print('skipping {}'.format(src))
 
+
 def copy_files(files, data=None):
     for info in files:
         if isinstance(info, tuple):
@@ -31,6 +32,7 @@ def copy_files(files, data=None):
             dst = os.path.basename(src)
         src = os.path.join('boilerplate', src)
         copy_file(src, dst, data)
+
 
 def symlink_files(files):
     for info in files:
@@ -43,6 +45,7 @@ def symlink_files(files):
             os.symlink(src, dst)
         else:
             print('skipping {}'.format(src))
+
 
 def update_settings(args):
     path = os.path.join(args.project, args.project, 'settings')
@@ -62,6 +65,7 @@ def update_settings(args):
     with open(os.path.join(path, '__init__.py'), 'w') as file:
         pass
 
+
 def update_urls(args):
     path = os.path.join(args.project, args.project, 'urls')
     if os.path.exists(path):
@@ -75,6 +79,7 @@ def update_urls(args):
     shutil.copyfile('boilerplate/urls/__init__.py', os.path.join(path, '__init__.py'))
     os.remove(os.path.join(path, '..', 'urls.py'))
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('project')
@@ -82,10 +87,14 @@ if __name__ == '__main__':
     data = {
         'project': args.project,
     }
+
+    # Prepare a couple of directories.
     if not os.path.exists('requirements'):
         os.mkdir('requirements')
     if not os.path.exists('frontend'):
         os.mkdir('frontend')
+
+    # Symlink files.
     symlink_files([
         'boilerplate/.babelrc',
         'boilerplate/webpack',
@@ -94,6 +103,8 @@ if __name__ == '__main__':
         ('../boilerplate/main', os.path.join(args.project, 'main')),
         'boilerplate/scripts'
     ])
+
+    # Directly copy files.
     copy_files([
         'package.json',
         ('requirements/base.txt', 'requirements/base.txt'),
@@ -105,6 +116,8 @@ if __name__ == '__main__':
         ('frontend/routes.jsx', 'frontend/routes.jsx'),
         ('asgi.py', os.path.join(args.project, args.project, 'asgi.py'))
     ])
+
+    # Copy and transform files.
     copy_files([
         ('local_fabfile.py', 'fabfile.py'),
         'docker/docker-compose.project.yml',
@@ -112,11 +125,18 @@ if __name__ == '__main__':
         '.dockerignore',
         '.gitignore',
     ], data)
+
+    # Do some more complex updates.
     update_settings(args)
     update_urls(args)
+
+    # Modify the permissions of the local directory to have
+    # the sticky bit switched on. Helps prevent docker processes
+    # from making files owned by root.
     # TODO: Keep existing permissions.
     os.chmod('.', 02775)
 
+    # Generate some development keys.
     os.chdir('boilerplate')
     try:
         os.mkdir('keys')

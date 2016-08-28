@@ -223,7 +223,7 @@ def setup_bucket():
 def collect_static():
     """Collect static files (usually to S3).
     """
-    run_cfg('$manage collectstatic', False)
+    run_cfg('$manage collectstatic', False, service='web')
 
 
 @task
