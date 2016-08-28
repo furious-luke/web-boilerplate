@@ -68,3 +68,17 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+# Logging
+
+if os.environ.get('DEBUG', 'false').lower() == 'true':
+
+    LOGGING['root']['level'] = 'DEBUG'
+
+    LOGGING['loggers'] = {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        }
+    }

@@ -2,3 +2,4 @@ node_modules
 var
 .git
 **/settings/local.py
+**/__pycache__

@@ -10,7 +10,6 @@ Django==1.10
 django-extensions
 djangorestframework
 dj-database-url
--e git+https://github.com/furious-luke/django-supertest#egg=django-supertest
 -e git+https://github.com/furious-luke/django-jsdata#egg=django-jsdata
 -e git+https://github.com/furious-luke/django-xauth#egg=django-xauth
 django-storages
@@ -20,4 +19,5 @@ django-webpack-loader
 django-redis
 -e git+https://github.com/furious-luke/channels#egg=channels
 -e git+https://github.com/andrewgodwin/asgi_redis#egg=asgi_redis
--e git+https://github.com/furious-luke/django-cq#egg=django-cq
+# -e git+https://github.com/furious-luke/django-cq#egg=django-cq
+croniter
