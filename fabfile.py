@@ -4,7 +4,7 @@ import tempfile
 import datetime
 from string import Template
 
-from fabric.api import run, task, local
+from fabric.api import run, task, local, shell_env
 import boto3
 from boto.s3.key import Key
 
@@ -65,38 +65,38 @@ def run_cfg(cmd, dev=True, capture=False, **kwargs):
 
 
 @task
-def build(no_cache=False, production=False):
+def build(no_cache=False, prod=False):
     """Build the docker containers.
 
     Need to use a shitty hack to get around symlinks. Use tar to
     convert symlinked directories into the actual data.
     """
-    def _build(production):
+    def _build(prod):
         opts = ''
         if no_cache:
             opts += ' --no-cache'
-        run_cfg('$compose build{}'.format(opts), not production)
-    if production:
+        run_cfg('$compose build{}'.format(opts), not prod)
+    if prod:
         old_dir = os.getcwd()
         new_dir = tempfile.mkdtemp()
         os.system('tar ch . | tar xC {}'.format(new_dir))
         os.chdir(new_dir)
         try:
-            _build(production)
+            _build(prod)
         finally:
             os.chdir(old_dir)
             shutil.rmtree(new_dir)
     else:
-        _build(production)
+        _build(prod)
 
 @task
-def up(service=None, production=False):
+def up(service=None, prod=False):
     """Launch the server.
     """
     cmd = '$compose up'
     if service:
         cmd += ' ' + service
-    run_cfg(cmd, not production)
+    run_cfg(cmd, not prod)
 
 
 @task
@@ -137,10 +137,10 @@ def node_test():
 
 
 @task
-def manage(cmd, production=False):
+def manage(cmd, prod=False):
     """Run a management command.
     """
-    run_cfg('$manage {}'.format(cmd), not production)
+    run_cfg('$manage {}'.format(cmd), not prod)
 
 
 @task(alias='sp')
@@ -149,10 +149,10 @@ def shell_plus():
 
 
 @task
-def migrate(production=False):
+def migrate(prod=False):
     """Migrate the database.
     """
-    run_cfg('$manage migrate', not production)
+    run_cfg('$manage migrate', not prod)
 
 
 @task(alias='mm')
@@ -177,17 +177,17 @@ def create_superuser():
 
 
 @task
-def pdb(production=False):
+def pdb(prod=False):
     """Run with options to support pdb.
     """
-    run_cfg('$run python3 manage.py runserver 0.0.0.0:8000', not production)
+    run_cfg('$run python3 manage.py runserver 0.0.0.0:8000', not prod)
 
 
 @task
-def cli(service='web', production=False):
+def cli(service='web', prod=False):
     """Open a terminal in the container.
     """
-    run_cfg('$run bash', not production, service=service)
+    run_cfg('$run bash', not prod, service=service)
 
 
 @task(alias='sb')
@@ -220,10 +220,22 @@ def setup_bucket():
 
 
 @task(alias='cs')
-def collect_static():
+def collect_static(profile=None):
     """Collect static files (usually to S3).
     """
-    run_cfg('$manage collectstatic', False, service='web')
+    env = {}
+    if profile:
+        with open(os.path.expanduser('~/.aws/credentials')) as file:
+            for line in file:
+                if line.strip() != '[%s]' % profile:
+                    continue
+                access = next(file).strip().replace(' ', '').split('=')
+                secret = next(file).strip().replace(' ', '').split('=')
+                env[access[0].upper()] = access[1]
+                env[secret[0].upper()] = secret[1]
+                break
+    with shell_env(**env):
+        run_cfg('$manage collectstatic', False, service='web')
 
 
 @task
@@ -234,18 +246,18 @@ def deploy():
 
 
 @task
-def down(production=False):
+def down(prod=False):
     """Stop all running containers.
     """
-    run_cfg('$compose stop', not production)
+    run_cfg('$compose stop', not prod)
 
 
 @task
-def kill(production=False):
+def kill(prod=False):
     """Remove containers.
     """
     down()
-    run_cfg('$compose rm -fv', not production)
+    run_cfg('$compose rm -fv', not prod)
 
 
 @task
