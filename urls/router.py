@@ -1,1 +1,4 @@
-from .boilerplate.router import router
+from .boilerplate.router import register, router
+
+
+# register('your.router')
