@@ -106,7 +106,7 @@ CACHES = {
             'CONNECTION_POOL_CLASS': 'redis.connection.BlockingConnectionPool',
             'CONNECTION_POOL_KWARGS': {
                 'max_connections': 7,
-                'timeout': None
+                'timeout': 5
             }
         }
     }
