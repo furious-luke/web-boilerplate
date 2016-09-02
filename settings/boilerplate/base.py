@@ -103,6 +103,11 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_CLASS': 'redis.connection.BlockingConnectionPool',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 7,
+                'timeout': None
+            }
         }
     }
 }
@@ -121,7 +126,7 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
 
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'asgi_redis.RedisChannelLayer',
+        'BACKEND': 'asgi_redis.DjangoRedisChannelLayer',
         'CONFIG': {
             'hosts': [REDIS_URL],
             'channel_capacity': {
