@@ -29,10 +29,9 @@ services:
       args:
         run: worker
     environment:
-      - WEB_PROCESSES=1
-      - WEB_THREADS=1
       - WORKER_PROCESSES=1
-      - WORKER_THREADS=5
+      - WEB_THREADS=1
+      - WORKER_THREADS=3
     links:
       - db
       - redis
