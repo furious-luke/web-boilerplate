@@ -3,8 +3,6 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux-reusable';
 
 import { authActions } from '../../actions/auth-actions';
-// import LoginForm from './login-form';
-// import AuthWidget from './auth-widget';
 
 function mapStateToProps( state ) {
   const { auth } = state;

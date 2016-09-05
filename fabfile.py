@@ -180,7 +180,7 @@ def create_superuser():
 def pdb(prod=False):
     """Run with options to support pdb.
     """
-    run_cfg('$run python3 manage.py runserver 0.0.0.0:8000', not prod)
+    run_cfg('$run python3 manage.py runserver 0.0.0.0:8000', not prod, service='web')
 
 
 @task
