@@ -37,7 +37,10 @@ class IndexView(APIViewMixin, TemplateView):
             user = self.request.user
             data['user'] = {
                 'id': user.id,
-                'username': user.username,
                 'email': user.email,
             }
+            try:
+                data['username'] = user.username
+            except AttributeError:
+                data['username'] = user.email
         return super().get_jsdata(**data)

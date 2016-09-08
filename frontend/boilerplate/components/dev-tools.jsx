@@ -7,7 +7,7 @@ import ChartMonitor from 'redux-devtools-chart-monitor';
 
 export default createDevTools(
   <DockMonitor toggleVisibilityKey="ctrl-h" changePositionKey="ctrl-q" changeMonitorKey="ctrl-m"
-               defaultPosition="bottom" defaultIsVisible={ true }>
+               defaultPosition="bottom" defaultIsVisible={ false }>
     <ChartMonitor />
     <DiffMonitor />
     <LogMonitor />
