@@ -64,6 +64,21 @@ def run_cfg(cmd, dev=True, capture=False, **kwargs):
     return local(cmd, capture=capture)
 
 
+def aws_profile(profile):
+    env = {}
+    if profile:
+        with open(os.path.expanduser('~/.aws/credentials')) as file:
+            for line in file:
+                if line.strip() != '[%s]' % profile:
+                    continue
+                access = next(file).strip().replace(' ', '').split('=')
+                secret = next(file).strip().replace(' ', '').split('=')
+                env[access[0].upper()] = access[1]
+                env[secret[0].upper()] = secret[1]
+                break
+    return env
+
+
 @task
 def build(no_cache=False, prod=False):
     """Build the docker containers.
@@ -223,17 +238,7 @@ def setup_bucket():
 def collect_static(profile=None):
     """Collect static files (usually to S3).
     """
-    env = {}
-    if profile:
-        with open(os.path.expanduser('~/.aws/credentials')) as file:
-            for line in file:
-                if line.strip() != '[%s]' % profile:
-                    continue
-                access = next(file).strip().replace(' ', '').split('=')
-                secret = next(file).strip().replace(' ', '').split('=')
-                env[access[0].upper()] = access[1]
-                env[secret[0].upper()] = secret[1]
-                break
+    env = aws_profile(profile)
     with shell_env(**env):
         run_cfg('$manage collectstatic', False, service='web')
 
