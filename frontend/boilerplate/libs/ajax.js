@@ -1,9 +1,17 @@
 import $ from 'jquery';
 
-export function get( url ) {
-  let method = 'get', contentType = 'application/json; charset=utf-8',
+export function ajax( url, method, data ) {
+  let contentType = 'application/json; charset=utf-8',
       dataType = 'json';
   return $.ajax({ url, method, contentType, dataType });
+}
+
+export function get( url ) {
+  return ajax( url, 'get' );
+}
+
+export function post( url, data ) {
+  return ajax( url, 'post', JSON.stringify( data ));
 }
 
 export function createOrUpdate( urlBase, data, success ) {
