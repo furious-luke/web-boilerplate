@@ -1,17 +1,25 @@
 import $ from 'jquery';
 
-export function ajax( url, method, data ) {
-  let contentType = 'application/json; charset=utf-8',
-      dataType = 'json';
-  return $.ajax({ url, method, contentType, dataType });
+export function ajax( url, method, data, useForm ) {
+  let opts = {
+    url,
+    method,
+    data,
+    dataType: 'json'
+  };
+  if( !useForm )
+    opts.contentType = 'application/json; charset=utf-8';
+  console.log( opts );
+  return $.ajax( opts );
 }
 
 export function get( url ) {
   return ajax( url, 'get' );
 }
 
-export function post( url, data ) {
-  return ajax( url, 'post', JSON.stringify( data ));
+export function post( url, data, useForm ) {
+  let _data = useForm ? data : JSON.stringify( data );
+  return ajax( url, 'post', _data, useForm );
 }
 
 export function createOrUpdate( urlBase, data, success ) {
