@@ -40,7 +40,7 @@ class IndexView(APIViewMixin, TemplateView):
                 'email': user.email,
             }
             try:
-                data['username'] = user.username
+                data['user']['username'] = user.username
             except AttributeError:
-                data['username'] = user.email
+                data['user']['username'] = user.email
         return super().get_jsdata(**data)

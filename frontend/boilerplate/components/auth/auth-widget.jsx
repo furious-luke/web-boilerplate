@@ -1,5 +1,4 @@
 import React, { Component, PropTypes } from 'react';
-import { push } from 'react-router-redux';
 import CSSModules from 'react-css-modules';
 
 import styles from './auth-widget.css';
