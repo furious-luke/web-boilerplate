@@ -51,8 +51,8 @@ var Model = {
     opts.success = function( response, status ) {
       if( status != 'success' ) {
 	console.error( response );
-	if( options.error )
-	  options.error( response );
+	if( options.failure )
+	  options.failure( response );
       }
       else {
 	if( options.success )
@@ -62,8 +62,8 @@ var Model = {
 
     var xhr = $.ajax( opts ).fail( function( xhr, status, error ) {
       console.error( xhr.responseText );
-      if( options.error )
-	options.error( status, undefined, error );
+      if( options.failure )
+	options.failure( status, undefined, error );
     });
     if( options.always )
       xhr.always( options.always );
@@ -82,8 +82,8 @@ var Model = {
     var xhr = $.get( opts )
 	       .fail( function( xhr, status, error ) {
 		 console.error( xhr.responseText );
-		 if( options.error )
-		   options.error( status, undefined, error );
+		 if( options.failure )
+		   options.failure( status, undefined, error );
 	       });
     if( options.success )
       xhr.done( options.success );
