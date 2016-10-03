@@ -244,6 +244,7 @@ def setup_bucket():
 def collect_static(profile=None):
     """Collect static files (usually to S3).
     """
+    profile = profile or BASE_CONFIG['aws_profile']
     env = aws_profile(profile)
     with shell_env(**env):
         run_cfg('$manage collectstatic', False, service='web')
@@ -327,7 +328,8 @@ def init_addons(app=None):
 
 
 @task
-def init_config(profile, app=None):
+def init_config(app=None, profile=None):
+    profile = profile or BASE_CONFIG['aws_profile']
     app = app or BASE_CONFIG['app']
     access, secret = get_aws_creds(profile)
     cfg = [
