@@ -122,20 +122,30 @@ AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
 
 
-# Channels
+# Channels/CQ
 
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'asgi_redis.DjangoRedisChannelLayer',
         'CONFIG': {
             'hosts': [REDIS_URL],
+        },
+        'ROUTING': PROJECT + '.urls.channels.channel_routing'
+    },
+    'long': {
+        'BACKEND': 'asgi_redis.DjangoRedisChannelLayer',
+        'CONFIG': {
+            'hosts': [REDIS_URL],
+            'expiry': 1800,
             'channel_capacity': {
                 'cq-tasks': 1000
             }
         },
-        'ROUTING': PROJECT + '.urls.channels.channel_routing'
-    }
+        'ROUTING': PROJECT + '.urls.channels.channel_routing',
+    },
 }
+
+CQ_CHANNEL_LAYER = 'long'
 
 
 # Loggers
