@@ -20,11 +20,10 @@ services:
     environment:
       - WORKER_PROCESSES=1
       - WEB_THREADS=1
-      - WORKER_THREADS=3
+      - WORKER_THREADS=2
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=dummy
-      - WORKER_CONCURRENCY=1
       - DEBUG=true
     links:
       - db

@@ -45,7 +45,7 @@ module.exports = {
       {
         test: /\.(woff2?|eot|ttf|svg|otf)(\?.+)?$/,
         loaders: [
-          'url?limit=100000'
+          'url'
         ]
       }
     ]

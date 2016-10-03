@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import datetime
+import binascii
 from string import Template
 
 from fabric.api import run, task, local, shell_env
@@ -64,18 +65,23 @@ def run_cfg(cmd, dev=True, capture=False, **kwargs):
     return local(cmd, capture=capture)
 
 
+def get_aws_creds(profile):
+    with open(os.path.expanduser('~/.aws/credentials')) as file:
+        for line in file:
+            if line.strip() != '[%s]' % profile:
+                continue
+            access = next(file).strip().replace(' ', '').split('=')
+            secret = next(file).strip().replace(' ', '').split('=')
+            return (access, secret)
+    return (('', ''), ('', ''))
+
+
 def aws_profile(profile):
     env = {}
     if profile:
-        with open(os.path.expanduser('~/.aws/credentials')) as file:
-            for line in file:
-                if line.strip() != '[%s]' % profile:
-                    continue
-                access = next(file).strip().replace(' ', '').split('=')
-                secret = next(file).strip().replace(' ', '').split('=')
-                env[access[0].upper()] = access[1]
-                env[secret[0].upper()] = secret[1]
-                break
+        access, secret = get_aws_creds(profile)
+        env[access[0].upper()] = access[1]
+        env[secret[0].upper()] = secret[1]
     return env
 
 
@@ -299,3 +305,45 @@ def deploy_db(app, bucket_name):
     filename = 'var/{}'.format(filename)
     s3path = upload_s3(filename, bucket_name, remote_key)
     local('heroku pg:backups -a {app} restore "{filename}" DATABASE_URL'.format(filename=s3path, app=app))
+
+
+@task
+def remote(cmd, app=None):
+    app = app or BASE_CONFIG['app']
+    local('heroku run {} -a {}'.format(cmd, app))
+
+
+@task(alias='rman')
+def remote_manage(cmd, app=None):
+    app = app or BASE_CONFIG['app']
+    local('heroku run python3 manage.py {} -a {}'.format(cmd, app))
+
+
+@task
+def init_addons(app=None):
+    app = app or BASE_CONFIG['app']
+    local('heroku addons:create heroku-postgresql:hobby-dev -a {}'.format(app))
+    local('heroku addons:create heroku-redis:hobby-dev -a {}'.format(app))
+
+
+@task
+def init_config(profile, app=None):
+    app = app or BASE_CONFIG['app']
+    access, secret = get_aws_creds(profile)
+    cfg = [
+        'WEB_THREADS=2',
+        'WORKER_PROCESSES=1',
+        'WORKER_THREADS=0',
+        'SECRET_KEY={}'.format(binascii.hexlify(os.urandom(24)).decode()),
+        'AWS_ACCESS_KEY_ID={}'.format(access[1]),
+        'AWS_SECRET_ACCESS_KEY={}'.format(secret[1])
+    ]
+    local('heroku config:set {} -a {}'.format(' '.join(cfg), app))
+
+
+@task
+def create_app(app=None):
+    app = app or BASE_CONFIG['app']
+    local('heroku create {}'.format(app))
+    init_addons(app)
+    init_config(app)
