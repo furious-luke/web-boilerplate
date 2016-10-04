@@ -170,10 +170,13 @@ def shell_plus():
 
 
 @task
-def migrate(prod=False):
+def migrate(prod=False, remote=False):
     """Migrate the database.
     """
-    run_cfg('$manage migrate', not prod)
+    if not remote:
+        run_cfg('$manage migrate', not prod)
+    else:
+        remote_manage('migrate')
 
 
 @task(alias='mm')
@@ -184,10 +187,15 @@ def make_migrations():
 
 
 @task
-def reset_db():
+def reset_db(remote=False, db=None):
     """Reset the database.
     """
-    manage('reset_db')
+    if not remote:
+        manage('reset_db')
+    else:
+        if db is None:
+            db = 'DATABASE_URL'
+        heroku('pg:reset {}'.format(db))
 
 
 @task(alias='csu')
@@ -309,12 +317,18 @@ def deploy_db(app, bucket_name):
 
 
 @task
+def heroku(cmd, app=None):
+    app = app or BASE_CONFIG['app']
+    local('heroku {} -a {}'.format(cmd, app))
+
+
+@task
 def remote(cmd, app=None):
     app = app or BASE_CONFIG['app']
     local('heroku run {} -a {}'.format(cmd, app))
 
 
-@task(alias='rman')
+@task(alias='rem')
 def remote_manage(cmd, app=None):
     app = app or BASE_CONFIG['app']
     local('heroku run python3 manage.py {} -a {}'.format(cmd, app))
