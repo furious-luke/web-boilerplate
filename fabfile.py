@@ -158,10 +158,13 @@ def node_test():
 
 
 @task
-def manage(cmd, prod=False):
+def manage(cmd, prod=False, remote=False):
     """Run a management command.
     """
-    run_cfg('$manage {}'.format(cmd), not prod)
+    if not remote:
+        run_cfg('$manage {}'.format(cmd), not prod)
+    else:
+        remote_manage(cmd)
 
 
 @task(alias='sp')
@@ -363,3 +366,34 @@ def create_app(app=None):
     local('heroku create {}'.format(app))
     init_addons(app)
     init_config(app)
+
+
+@task
+def setup_ssl(domains=None):
+    domains = domains or BASE_CONFIG['domains']
+    domains = domains.split(',')
+    primary = domains[0]
+    local('docker run --rm -it -p 443:443 -p 80:80 --name certbot '
+          '-v "/etc/letsencrypt:/etc/letsencrypt" '
+          '-v "/var/lib/letsencrypt:/var/lib/letsencrypt" '
+          'quay.io/letsencrypt/letsencrypt:latest '
+          'certonly --manual -d {} '
+          ''.format(
+              ' -d '.join(domains)
+          ))
+    heroku('sudo certs:add --type sni /etc/letsencrypt/live/{primary}-0001/fullchain.pem '
+           '/etc/letsencrypt/live/{primary}-0001/privkey.pem'.format(primary=primary))
+
+
+@task
+def renew_ssl(domains=None):
+    domains = domains or BASE_CONFIG['domains']
+    domains = domains.split(',')
+    primary = domains[0]
+    local('docker run --rm -p 443:443 -p 80:80 --name certbot '
+          '-v "/etc/letsencrypt:/etc/letsencrypt" '
+          '-v "/var/lib/letsencrypt:/var/lib/letsencrypt" '
+          'quay.io/letsencrypt/letsencrypt:latest '
+          'renew --non-interactive --agree-tos')
+    heroku('sudo certs:update /etc/letsencrypt/live/{primary}-0001/fullchain.pem '
+           '/etc/letsencrypt/live/{primary}-0001/privkey.pem'.format(primary=primary))

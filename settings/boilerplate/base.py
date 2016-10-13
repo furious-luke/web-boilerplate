@@ -89,7 +89,11 @@ LOGIN_REDIRECT_URL = '/'
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-    ]
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'TEST_REQUEST_DEFAULT_FORMAT': 'json'
 }
 
 
@@ -152,7 +156,7 @@ CQ_CHANNEL_LAYER = 'long'
 
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': True,
+    # 'disable_existing_loggers': True,
     'root': {
         'level': 'INFO',
         'handlers': ['console'],
