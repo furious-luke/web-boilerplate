@@ -5,7 +5,7 @@ import datetime
 import binascii
 from string import Template
 
-from fabric.api import run, task, local, shell_env
+from fabric.api import run, task, local, shell_env, warn_only
 import boto3
 from boto.s3.key import Key
 
@@ -14,7 +14,8 @@ BASE_CONFIG = {
     'compose': 'docker-compose -f $compose_file -f $compose_project_file -p $docker_project',
     'compose_project_file': 'docker-compose.project.yml',
     'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
-    'service': 'worker'
+    'service': 'worker',
+    'aws': 'aws --profile $aws_profile --region $aws_region'
 }
 
 DEV_CONFIG = {
@@ -393,7 +394,69 @@ def renew_ssl(domains=None):
     local('docker run --rm -p 443:443 -p 80:80 --name certbot '
           '-v "/etc/letsencrypt:/etc/letsencrypt" '
           '-v "/var/lib/letsencrypt:/var/lib/letsencrypt" '
-          'quay.io/letsencrypt/letsencrypt:latest '
+          'quay.io/letsencrypt/letsencrypt:latest '>
           'renew --non-interactive --agree-tos')
     heroku('sudo certs:update /etc/letsencrypt/live/{primary}-0001/fullchain.pem '
            '/etc/letsencrypt/live/{primary}-0001/privkey.pem'.format(primary=primary))
+
+
+@task
+def aws(cmd):
+    run_cfg('$aws {}'.format(cmd))
+
+
+@task
+def aws_create_security_group():
+    with warn_only():
+        run_cfg('$aws ec2 create-security-group --group-name $app'
+                ' --description "$project security group"')
+        run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+                ' --protocol tcp --port 22 --cidr 0.0.0.0/0')
+        run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+                ' --protocol tcp --port 80 --cidr 0.0.0.0/0')
+
+
+@task
+def aws_docker_login():
+    res = run_cfg('$aws ecr get-login', capture=True)
+    local(res)
+
+
+@task
+def aws_create_repository():
+    with warn_only():
+        run_cfg('$aws ecr create-repository --repository-name $app')
+
+
+@task
+def aws_register_task_definition(family):
+    port_mappings = {
+        'web': 'portMappings=[{containerPort=80,hostPort=80,protocol="tcp"}],',
+    }
+    ctr_def = ('name="{family}",image="$app",essential=true,'
+               'memory=128,{port_mappings}'
+               'entryPoint="sh,-c",command="./scripts/{family}.sh",'
+               'workingDirectory="/app/user"').format(
+                   family=family,
+                   port_mappings=port_mappings.get(family, '')
+               )
+    run_cfg('$aws ecs register-task-definition'
+            ' --family {}'
+            ' --network-mode bridge'
+            ' --container-definitions={}'.format(family, ctr_def))
+
+
+@task
+def aws_setup():
+    aws_create_security_group()
+    aws_docker_login()
+    aws_create_repository()
+    with warn_only():
+        aws_register_task_definition('web')
+        aws_register_task_definition('worker')
+
+
+@task
+def aws_push():
+    run_cfg('docker tag ${project}_web:latest $ecs_repository:latest')
+    run_cfg('docker push $ecs_repository:latest')

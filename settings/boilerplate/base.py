@@ -83,6 +83,8 @@ LOGIN_URL = '/'
 
 LOGIN_REDIRECT_URL = '/'
 
+XAUTH_AJAX = True
+
 
 # Django Rest Framework
 
