@@ -1,0 +1,37 @@
+FROM phusion/baseimage:latest
+MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
+CMD [ "/sbin/my_init" ]
+
+RUN mkdir -p /usr/local/src/requirements/boilerplate /usr/local/app \
+    /usr/local/app/var /usr/local/app/boilerplate /etc/my_init.d
+
+ADD boilerplate/requirements/boilerplate /usr/local/src/requirements/boilerplate
+ADD requirements /usr/local/src/requirements
+
+RUN apt-get -y update && \
+    apt-get -y install python3 python3-pip git postgresql-client libpq-dev \
+               libjpeg62 libjpeg-dev wget
+RUN pip3 install -r /usr/local/src/requirements/production.txt && \
+    apt-get -y purge git libpq-dev wget && \
+    apt-get -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    echo /root > /etc/container_environment/HOME
+
+ADD manage.py /usr/local/app/
+ADD webpack-stats.production.json /usr/local/app/
+ADD scripts /usr/local/app/scripts/
+ADD scripts/daphne.conf /usr/local/app/scripts/
+
+WORKDIR /usr/local/app
+EXPOSE 8000-8010
+
+ARG project
+ADD ${project} /usr/local/app/${project}/
+ADD boilerplate/__init__.py /usr/local/app/boilerplate
+ADD boilerplate/manage.py /usr/local/app/boilerplate
+ENV PYTHONPATH=/usr/local/app/${project}:$PYTHONPATH
+ENV DJANGO_SETTINGS_MODULE=${project}.settings.production
+ENV ASGI_APP=${project}.asgi:channel_layer
+
+ARG run
+ENV RUN=${run}
+CMD ./scripts/${RUN}.sh

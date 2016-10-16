@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import datetime
 import binascii
+import json
 from string import Template
 
 from fabric.api import run, task, local, shell_env, warn_only
@@ -28,7 +29,7 @@ DEV_CONFIG = {
 
 PROD_CONFIG = {
     'docker_project': '$project',
-    'compose_file': 'boilerplate/docker/docker-compose.cedar.yml',
+    'compose_file': 'boilerplate/docker/docker-compose.aws.yml',
     'run': '$compose run --rm --service-ports $service',
     'manage': '$run python3 -W ignore manage.py'
 }
@@ -423,23 +424,30 @@ def aws_docker_login():
 
 
 @task
-def aws_create_repository():
+def aws_create_repository(repo=None):
+    repo = '$app' if repo is None else repo
     with warn_only():
-        run_cfg('$aws ecr create-repository --repository-name $app')
+        run_cfg('$aws ecr create-repository --repository-name {}'.format(repo))
 
 
 @task
-def aws_register_task_definition(family):
+def aws_register_task_definition(family, image, memory=None, env=None):
+    memory = '256' if memory is None else memory
     port_mappings = {
-        'web': 'portMappings=[{containerPort=80,hostPort=80,protocol="tcp"}],',
+        'web': 'portMappings=[{containerPort=80,hostPort=80,protocol="tcp"}]',
     }
-    ctr_def = ('name="{family}",image="$app",essential=true,'
-               'memory=128,{port_mappings}'
-               'entryPoint="sh,-c",command="./scripts/{family}.sh",'
-               'workingDirectory="/app/user"').format(
-                   family=family,
-                   port_mappings=port_mappings.get(family, '')
-               )
+    if env is not None:
+        env = ['{name=%s,value=%s}' % tuple(e.split('=')) for e in env.split(',')]
+        env = 'environment=[%s]' % ','.join(env)
+    ctr_def = [
+        'name="%s"' % family,
+        'image="%s"' % image,
+        'essential=true',
+        'memoryReservation=%s' % memory,
+        port_mappings.get(family, None),
+        env
+    ]
+    ctr_def = ','.join([v for v in ctr_def if v is not None])
     run_cfg('$aws ecs register-task-definition'
             ' --family {}'
             ' --network-mode bridge'
@@ -447,16 +455,29 @@ def aws_register_task_definition(family):
 
 
 @task
+def aws_register_web_task(family, memory=None):
+    aws_register_task_definition(
+        family,
+        '$app',
+        env='RUN=%s' % family
+    )
+
+
+@task
 def aws_setup():
     aws_create_security_group()
     aws_docker_login()
     aws_create_repository()
+    aws_create_repository('nginx')
     with warn_only():
         aws_register_task_definition('web')
         aws_register_task_definition('worker')
 
 
 @task
-def aws_push():
-    run_cfg('docker tag ${project}_web:latest $ecs_repository:latest')
-    run_cfg('docker push $ecs_repository:latest')
+def aws_push(repo, ctr):
+    res = run_cfg('$aws ecr describe-repositories --repository-names {}'.format(repo), capture=True)
+    res = json.loads(res)
+    uri = res['repositories'][0]['repositoryUri']
+    run_cfg('docker tag {}:latest {}:latest'.format(ctr, uri))
+    run_cfg('docker push {}:latest'.format(uri))
