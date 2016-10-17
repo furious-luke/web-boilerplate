@@ -21,7 +21,9 @@ RUN /app/.heroku/python/bin/pip install -r requirements/production.txt
 
 ADD manage.py /app/user/
 ADD webpack-stats.production.json /app/user/
-ADD scripts /app/user/scripts/
+ADD scripts/web.sh /app/user/scripts/
+ADD scripts/worker.sh /app/user/scripts/
+ADD scripts/*.conf /app/user/scripts/
 
 ARG project
 ADD ${project} /app/user/${project}/

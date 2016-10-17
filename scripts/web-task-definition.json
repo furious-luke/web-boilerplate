@@ -1,0 +1,72 @@
+{
+  "networkMode": "bridge",
+  "containerDefinitions": [
+    {
+      "volumesFrom": [],
+      "portMappings": [],
+      "essential": true,
+      "mountPoints": [],
+      "name": "web",
+      "environment": [
+        {
+          "name": "RUN",
+          "value": "web"
+        }
+      ],
+      "image": "$app",
+      "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+              "awslogs-group": "$project",
+              "awslogs-region": "$aws_region",
+              "awslogs-stream-prefix": "web"
+          }
+      },
+      "cpu": 0,
+      "memoryReservation": 512
+    },
+    {
+      "volumesFrom": [],
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "mountPoints": [],
+      "name": "nginx",
+      "environment": [
+        {
+          "name": "SERVER_NAME",
+          "value": "$project"
+        },
+        {
+          "name": "WORKER_CONNECTIONS",
+          "value": "1024"
+        },
+        {
+          "name": "WORKER_PROCESSES",
+          "value": "1"
+        }
+      ],
+      "links": [
+        "web"
+      ],
+      "image": "nginx:latest",
+      "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+              "awslogs-group": "$project",
+              "awslogs-region": "$aws_region",
+              "awslogs-stream-prefix": "nginx"
+          }
+      },
+      "cpu": 0,
+      "memoryReservation": 256
+    }
+  ],
+  "volumes": [],
+  "family": "web"
+}

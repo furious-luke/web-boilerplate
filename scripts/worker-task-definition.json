@@ -1,0 +1,43 @@
+{
+  "networkMode": "bridge",
+  "containerDefinitions": [
+    {
+      "volumesFrom": [],
+      "portMappings": [],
+      "essential": true,
+      "mountPoints": [],
+      "name": "worker",
+      "environment": [
+        {
+          "name": "RUN",
+          "value": "worker"
+        },
+        {
+          "name": "WEB_THREADS",
+          "value": "3"
+        },
+        {
+          "name": "WORKER_PROCESSES",
+          "value": "1"
+        },
+        {
+          "name": "WORKER_THREADS",
+          "value": "1"
+        }
+      ],
+      "image": "$app",
+      "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+              "awslogs-group": "$project",
+              "awslogs-region": "$aws_region",
+              "awslogs-stream-prefix": "worker"
+          }
+      },
+      "cpu": 0,
+      "memoryReservation": 1000
+    }
+  ],
+  "volumes": [],
+  "family": "worker"
+}

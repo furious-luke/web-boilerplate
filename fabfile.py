@@ -1,3 +1,4 @@
+import sys
 import os
 import shutil
 import tempfile
@@ -28,8 +29,9 @@ DEV_CONFIG = {
 }
 
 PROD_CONFIG = {
+    'platform': 'cedar',
     'docker_project': '$project',
-    'compose_file': 'boilerplate/docker/docker-compose.aws.yml',
+    'compose_file': 'boilerplate/docker/docker-compose.$platform.yml',
     'run': '$compose run --rm --service-ports $service',
     'manage': '$run python3 -W ignore manage.py'
 }
@@ -415,6 +417,28 @@ def aws_create_security_group():
                 ' --protocol tcp --port 22 --cidr 0.0.0.0/0')
         run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
                 ' --protocol tcp --port 80 --cidr 0.0.0.0/0')
+        run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+                ' --protocol tcp --port 443 --cidr 0.0.0.0/0')
+
+
+@task
+def aws_create_ecs_roles():
+    print('*** Do this from the console, this doesn\'t work.')
+    sys.exit(1)
+    run_cfg('$aws iam create-role --role-name ecsInstanceRole'
+            ' --assume-role-policy-document'
+            ' file://boilerplate/scripts/ecs-assume-role.json')
+    run_cfg('$aws iam put-role-policy --role-name ecsInstanceRole'
+            ' --policy-name AmazonEC2ContainerServiceforEC2Role'
+            ' --policy-document'
+            ' file://boilerplate/scripts/ecs-instance-role.json')
+    run_cfg('$aws iam create-role --role-name ecsServiceRole'
+            ' --assume-role-policy-document'
+            ' file://boilerplate/scripts/ecs-assume-role.json')
+    run_cfg('$aws iam put-role-policy --role-name ecsServiceRole'
+            ' --policy-name AmazonEC2ContainerServiceRole'
+            ' --policy-document'
+            ' file://boilerplate/scripts/ecs-service-role.json')
 
 
 @task
@@ -431,41 +455,73 @@ def aws_create_repository(repo=None):
 
 
 @task
-def aws_register_task_definition(family, image, memory=None, env=None):
-    memory = '256' if memory is None else memory
-    port_mappings = {
-        'web': 'portMappings=[{containerPort=80,hostPort=80,protocol="tcp"}]',
-    }
-    if env is not None:
-        env = ['{name=%s,value=%s}' % tuple(e.split('=')) for e in env.split(',')]
-        env = 'environment=[%s]' % ','.join(env)
-    ctr_def = [
-        'name="%s"' % family,
-        'image="%s"' % image,
-        'essential=true',
-        'memoryReservation=%s' % memory,
-        port_mappings.get(family, None),
-        env
-    ]
-    ctr_def = ','.join([v for v in ctr_def if v is not None])
-    run_cfg('$aws ecs register-task-definition'
-            ' --family {}'
-            ' --network-mode bridge'
-            ' --container-definitions={}'.format(family, ctr_def))
+def aws_create_log_group():
+    run_cfg('$aws logs create-log-group --log-group-name $project')
 
 
 @task
-def aws_register_web_task(family, memory=None):
-    aws_register_task_definition(
-        family,
-        '$app',
-        env='RUN=%s' % family
-    )
+def aws_register_task_definition(family):
+    with tempfile.NamedTemporaryFile() as outf:
+        with open('./scripts/{}-task-definition.json'.format(family)) as inf:
+            data = Template(inf.read()).substitute(prod_cfg())
+        outf.write(data.encode())
+        outf.flush()
+        run_cfg('$aws ecs register-task-definition'
+                ' --cli-input-json file://{}'.format(outf.name))
+
+
+@task
+def aws_create_cluster():
+    run_cfg('$aws ecs create-cluster --cluster-name $app')
+
+
+@task
+def aws_create_key_pair():
+    res = run_cfg('$aws ec2 create-key-pair'
+                  ' --key-name $app', capture=True)
+    print(res)
+    res = json.loads(res)
+    with open('{}.pem'.format(res['KeyName'])) as keyf:
+        keyf.write(res['KeyMaterial'])
+
+
+# Note: Not needed for ECS logging.
+# @task
+# def aws_create_config_bucket():
+#     run_cfg('$aws s3api create-bucket --bucket $aws_config_bucket')
+#     run_cfg('$aws s3 cp boilerplate/scripts/log-agent.cfg'
+#             ' s3://$aws_config_bucket/log-agent.cfg')
+
+
+@task
+def aws_run_instance():
+
+    # TODO: * Auto-assign public IP not set to enabled.
+    #       * IAM role cannot be set.
+
+    ami_map = {
+        'ap-southeast-2': 'ami-862211e5'
+    }
+    image = ami_map[BASE_CONFIG['aws_region']]
+    with tempfile.NamedTemporaryFile() as outf:
+        with open('boilerplate/scripts/user-data.sh') as inf:
+            data = Template(inf.read()).substitute(prod_cfg())
+        outf.write(data.encode())
+        outf.flush()
+        run_cfg('$aws ec2 run-instances'
+                ' --image-id $image'
+                ' --key-name $app'
+                ' --security-groups "$app"'
+                ' --user-data file://{}'
+                ' --instance-type t2.micro'
+                ' --count 1'.format(outf.name),
+                image=image)
 
 
 @task
 def aws_setup():
     aws_create_security_group()
+    aws_create_ecs_roles()
     aws_docker_login()
     aws_create_repository()
     aws_create_repository('nginx')
