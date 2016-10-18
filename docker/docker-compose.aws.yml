@@ -34,7 +34,7 @@ services:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.aws
       args:
-        run: web
+        run: web.aws
     environment:
       - WEB_PROCESSES=3
       - DATABASE_URL=postgres://postgres:@db:5432/postgres

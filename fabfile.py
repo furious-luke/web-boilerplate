@@ -30,7 +30,6 @@ DEV_CONFIG = {
 }
 
 PROD_CONFIG = {
-    'platform': 'aws',
     'docker_project': '$project',
     'compose_file': 'boilerplate/docker/docker-compose.$platform.yml',
     'run': '$compose run --rm --service-ports $service',

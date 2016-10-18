@@ -34,9 +34,9 @@ services:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.cedar
       args:
-        run: web
+        run: web.cedar
     environment:
-      - PORT=8080
+      - PORT=8000
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=dummy
@@ -44,7 +44,7 @@ services:
       - AWS_SECRET_ACCESS_KEY
       - DEBUG=true
     ports:
-      - 8080:8080
+      - 8080:8000
     links:
       - db
       - redis
@@ -54,9 +54,11 @@ services:
 
   nginx:
     image: furiousluke/nginx:latest
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.nginx
     ports:
+      - 8080:80
       - 8443:443
     links:
       - web
-    volumes:
-      - ../keys:/etc/nginx/keys
