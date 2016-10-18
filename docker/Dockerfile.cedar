@@ -1,4 +1,5 @@
 FROM heroku/cedar:14
+MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
 
 ENV PORT 3000
 ENV PYTHON_VERSION python-3.5.1

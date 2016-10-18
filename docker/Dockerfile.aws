@@ -18,8 +18,8 @@ RUN pip3 install -r /usr/local/src/requirements/production.txt && \
 
 ADD manage.py /usr/local/app/
 ADD webpack-stats.production.json /usr/local/app/
-ADD scripts /usr/local/app/scripts/
-ADD scripts/daphne.conf /usr/local/app/scripts/
+ADD scripts/*.sh /usr/local/app/scripts/
+ADD scripts/*.conf /usr/local/app/scripts/
 
 WORKDIR /usr/local/app
 EXPOSE 8000-8010

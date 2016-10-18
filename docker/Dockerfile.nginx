@@ -1,0 +1,4 @@
+FROM furiousluke/nginx:latest
+MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
+
+ADD boilerplate/keys /etc/nginx/keys

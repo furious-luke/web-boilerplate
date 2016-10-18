@@ -1,3 +1,3 @@
 #!/bin/bash
-openssl req -x509 -newkey rsa:2048 -keyout keys/dev.key -out keys/dev.cert -nodes -subj '/CN=localhost'
-cat keys/dev.key keys/dev.cert > keys/dev.pem
+openssl req -x509 -newkey rsa:2048 -keyout keys/privkey.key -out keys/cert.pem -nodes -subj '/CN=localhost'
+cat keys/privkey.key keys/cert.pem > keys/fullchain.pem

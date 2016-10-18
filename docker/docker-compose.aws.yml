@@ -36,9 +36,9 @@ services:
       args:
         run: web
     environment:
-      - WEB_PROCESSES=5
+      - WEB_PROCESSES=3
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
-      - REDIS_URL=redis://redis:6379
+      # - REDIS_URL=redis://redis:6379
       - SECRET_KEY=dummy
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -53,11 +53,11 @@ services:
       - ../../var:/usr/local/app/var
 
   nginx:
-    image: furiousluke/nginx:latest
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.nginx
     ports:
       - 8080:80
       - 8443:443
     links:
       - web
-    volumes:
-      - ../keys:/etc/nginx/keys

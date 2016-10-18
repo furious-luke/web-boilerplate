@@ -4,10 +4,11 @@ import shutil
 import tempfile
 import datetime
 import binascii
+import re
 import json
 from string import Template
 
-from fabric.api import run, task, local, shell_env, warn_only
+from fabric.api import run, task, local, shell_env, warn_only, hide
 import boto3
 from boto.s3.key import Key
 
@@ -29,7 +30,7 @@ DEV_CONFIG = {
 }
 
 PROD_CONFIG = {
-    'platform': 'cedar',
+    'platform': 'aws',
     'docker_project': '$project',
     'compose_file': 'boilerplate/docker/docker-compose.$platform.yml',
     'run': '$compose run --rm --service-ports $service',
@@ -65,7 +66,6 @@ def prod_cfg(*args):
 def run_cfg(cmd, dev=True, capture=False, **kwargs):
     cfg = dev_cfg(kwargs) if dev else prod_cfg(kwargs)
     cmd = Template(cmd).substitute(cfg)
-    # print(cmd)
     return local(cmd, capture=capture)
 
 
@@ -220,10 +220,12 @@ def pdb(prod=False):
 
 
 @task
-def cli(service='web', prod=False):
+def cli(service='web', cmd=None, prod=False):
     """Open a terminal in the container.
     """
-    run_cfg('$run bash', not prod, service=service)
+    if cmd is None:
+        cmd = 'bash'
+    run_cfg('$run {}'.format(cmd), not prod, service=service)
 
 
 @task(alias='sb')
@@ -419,6 +421,8 @@ def aws_create_security_group():
                 ' --protocol tcp --port 80 --cidr 0.0.0.0/0')
         run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
                 ' --protocol tcp --port 443 --cidr 0.0.0.0/0')
+        run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+                ' --protocol tcp --port 6379 --cidr 0.0.0.0/0')
 
 
 @task
@@ -461,6 +465,9 @@ def aws_create_log_group():
 
 @task
 def aws_register_task_definition(family):
+
+    # TODO: Check if secret key is already set, if not, generate one.
+
     with tempfile.NamedTemporaryFile() as outf:
         with open('./scripts/{}-task-definition.json'.format(family)) as inf:
             data = Template(inf.read()).substitute(prod_cfg())
@@ -537,3 +544,81 @@ def aws_push(repo, ctr):
     uri = res['repositories'][0]['repositoryUri']
     run_cfg('docker tag {}:latest {}:latest'.format(ctr, uri))
     run_cfg('docker push {}:latest'.format(uri))
+
+
+@task
+def aws_list_tasks():
+    tasks = run_cfg('$aws ecs list-tasks --cluster $app', capture=True)
+    return json.loads(tasks)['taskArns']
+
+
+@task
+def aws_describe_tasks():
+    tasks = ' '.join(['"%s"' % t for t in aws_list_tasks()])
+    tasks = run_cfg('$aws ecs describe-tasks --cluster $app'
+                    ' --tasks {}'.format(tasks), capture=True)
+    return json.loads(tasks)
+
+
+# @task
+# def aws_list_containers():
+#     ctrs = run_cfg('$aws ecs list-container-instances --cluster $app',
+#                    capture=True)
+#     return json.loads(ctrs)
+
+
+@task
+def aws_describe_containers(arns):
+    arns = ' '.join(['"%s"' % t for t in arns])
+    ctrs = run_cfg('$aws ecs describe-container-instances --cluster $app'
+                   ' --container-instances {}'.format(arns), capture=True)
+    return json.loads(ctrs)
+
+
+@task
+def aws_describe_instances(ids):
+    ids = ' '.join(['"%s"' % i for i in ids])
+    insts = run_cfg('$aws ec2 describe-instances --instance-ids {}'.format(ids),
+                    capture=True)
+    return json.loads(insts)
+
+
+@task
+def aws_public_dns(family):
+    with hide('running'):
+        tasks = aws_describe_tasks()
+        if family:
+            prog = re.compile(r'^.*:task-definition/{}:\d+'.format(family))
+        else:
+            prog = None
+        arns = [t['containerInstanceArn'] for t in tasks['tasks']
+                if prog is None or prog.match(t['taskDefinitionArn'])]
+        if not arns:
+            return
+        ctrs = aws_describe_containers(arns)
+        ids = [c['ec2InstanceId'] for c in ctrs['containerInstances']]
+        insts = aws_describe_instances(ids)
+        dns = []
+        for res in insts['Reservations']:
+            for ins in res['Instances']:
+                dns.append(ins['PublicDnsName'])
+    return dns
+
+
+@task
+def aws_ssh(family):
+    dns = aws_public_dns(family)
+    if dns:
+        run_cfg('ssh -i "${app}.pem" ec2-user@%s' % dns[0])
+
+
+@task
+def aws_scp(family, src, dst):
+    dns = aws_public_dns(family)
+    if dns:
+        run_cfg('scp -i "${app}.pem" %s ec2-user@%s:%s' % (src, dns[0], dst))
+
+
+# @task
+# def aws_login():
+    
