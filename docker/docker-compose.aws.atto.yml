@@ -1,0 +1,35 @@
+# AWS production configuration. Must override `project`.
+# This is "atto" size. Everything is built into a single
+# container.
+
+version: '2'
+services:
+
+  db:
+    image: postgres:latest
+    volumes:
+      - ../../var:/share
+
+  app:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.aws.atto
+    environment:
+      - DATABASE_URL=postgres://postgres:@db:5432/postgres
+      - REDIS_URL=redis://0.0.0.0:6379
+      - WEB_PROCESSES=1
+      - WORKER_PROCESSES=1
+      - WEB_THREADS=1
+      - WORKER_THREADS=1
+      - SECRET_KEY=dummy
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DEBUG=true
+    links:
+      - db
+    volumes:
+      - ..:/app/boilerplate
+      - ../../var:/app/var
+    ports:
+      - 8080:80
+      - 8443:443

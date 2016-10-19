@@ -405,6 +405,13 @@ def renew_ssl(domains=None):
 
 
 @task
+def heroku_push(ctr, repo):
+    uri = 'registry.heroku.com/$app/{}'.format(repo)
+    run_cfg('docker tag {}:latest {}:latest'.format(ctr, uri))
+    run_cfg('docker push {}:latest'.format(uri))
+
+
+@task
 def aws(cmd):
     run_cfg('$aws {}'.format(cmd))
 
