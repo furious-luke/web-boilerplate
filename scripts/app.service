@@ -1,0 +1,9 @@
+[Unit]
+Description=The App
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=simple
+ExecStart=docker run --rm --name app --env-file /root/app.env -p 80:80 -p 443:443 app
+ExecReload=docker stop app

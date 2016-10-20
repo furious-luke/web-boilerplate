@@ -662,10 +662,13 @@ def aws_public_dns(family):
 
 
 @task
-def aws_ssh(family):
-    dns = aws_public_dns(family)
+def aws_ssh(family=None):
+    if 'ip' in BASE_CONFIG:
+        dns = '$ip'
+    else:
+        dns = aws_public_dns(family)[0]
     if dns:
-        run_cfg('ssh -i "${app}.pem" ec2-user@%s' % dns[0])
+        run_cfg('ssh -i "${app}.pem" root@%s' % dns)
 
 
 @task
