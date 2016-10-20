@@ -325,9 +325,12 @@ def deploy_db(app, bucket_name):
 
 
 @task
-def heroku(cmd, app=None):
+def heroku(cmd, app=None, sudo=False):
     app = app or BASE_CONFIG['app']
-    local('heroku {} -a {}'.format(cmd, app))
+    cmd = 'heroku {} -a {}'.format(cmd, app)
+    if sudo:
+        cmd = 'sudo ' + cmd
+    local(cmd)
 
 
 @task
@@ -378,16 +381,17 @@ def setup_ssl(domains=None):
     domains = domains or BASE_CONFIG['domains']
     domains = domains.split(',')
     primary = domains[0]
-    local('docker run --rm -it -p 443:443 -p 80:80 --name certbot '
-          '-v "/etc/letsencrypt:/etc/letsencrypt" '
-          '-v "/var/lib/letsencrypt:/var/lib/letsencrypt" '
-          'quay.io/letsencrypt/letsencrypt:latest '
-          'certonly --manual -d {} '
-          ''.format(
-              ' -d '.join(domains)
-          ))
-    heroku('sudo certs:add --type sni /etc/letsencrypt/live/{primary}-0001/fullchain.pem '
-           '/etc/letsencrypt/live/{primary}-0001/privkey.pem'.format(primary=primary))
+    # local('docker run --rm -it -p 443:443 -p 80:80 --name certbot '
+    #       '-v "/etc/letsencrypt:/etc/letsencrypt" '
+    #       '-v "/var/lib/letsencrypt:/var/lib/letsencrypt" '
+    #       'quay.io/letsencrypt/letsencrypt:latest '
+    #       'certonly --manual -d {} '
+    #       ''.format(
+    #           ' -d '.join(domains)
+    #       ))
+    heroku('certs:add --type sni /etc/letsencrypt/live/{primary}-0001/fullchain.pem '
+           '/etc/letsencrypt/live/{primary}-0001/privkey.pem'.format(primary=primary),
+           sudo=True)
 
 
 @task
@@ -414,6 +418,12 @@ def heroku_push(ctr, repo):
 @task
 def aws(cmd):
     run_cfg('$aws {}'.format(cmd))
+
+
+@task
+def aws_create_user(name=None):
+    name = name if name is not None else '$project'
+    run_cfg('iam create-user --user-name {}'.format(name))
 
 
 @task
@@ -507,28 +517,60 @@ def aws_create_key_pair():
 
 
 @task
+def aws_get_security_group_id(name=None):
+    name = '$app' if name is None else name
+    grps = run_cfg('$aws ec2 describe-security-groups'
+                   ' --group-name {}'.format(name), capture=True)
+    grps = json.loads(grps)
+    try:
+        id = grps['SecurityGroups'][0]['GroupId']
+    except:
+        id = None
+    return id
+
+
+@task
 def aws_run_instance():
 
-    # TODO: * Auto-assign public IP not set to enabled.
-    #       * IAM role cannot be set.
+    # TODO: * IAM role cannot be set.
 
     ami_map = {
-        'ap-southeast-2': 'ami-862211e5'
+        # 'ap-southeast-2': 'ami-862211e5',  # docker enabled amazon
+        'ap-southeast-2': 'ami-f7bf8c94',  # arch linux
     }
     image = ami_map[BASE_CONFIG['aws_region']]
+    sg_id = aws_get_security_group_id()
     with tempfile.NamedTemporaryFile() as outf:
-        with open('boilerplate/scripts/user-data.sh') as inf:
+        with open('boilerplate/scripts/arch-user-data.sh') as inf:
             data = Template(inf.read()).substitute(prod_cfg())
         outf.write(data.encode())
         outf.flush()
-        run_cfg('$aws ec2 run-instances'
-                ' --image-id $image'
-                ' --key-name $app'
-                ' --security-groups "$app"'
-                ' --user-data file://{}'
-                ' --instance-type t2.micro'
-                ' --count 1'.format(outf.name),
-                image=image)
+        res = run_cfg('$aws ec2 run-instances'
+                      ' --image-id $image'
+                      ' --key-name $app'
+                      ' --security-group-ids "{sg_id}"'
+                      ' --user-data file://{user_data}'
+                      ' --instance-type t2.micro'
+                      ' --associate-public-ip-address'
+                      ' --count 1'.format(user_data=outf.name, sg_id=sg_id),
+                      image=image, capture=True)
+        print(res)
+        # return json.loads(res)
+
+
+@task
+def aws_allocate_address(inst_id):
+    res = run_cfg('$aws ec2 allocate-address --domain vpc', capture=True)
+    alloc_id = json.loads(res)['AllocationId']
+    run_cfg('$aws ec2 associate-address --instance-id {}'
+            ' --allocation-id {}'.format(inst_id, alloc_id))
+
+
+@task
+def aws_create_server():
+    inst_id = aws_run_instance()
+    run_cfg('$aws wait instance-running --instance-ids "{}"'.format(inst_id))
+    aws_allocate_address(inst_id)
 
 
 @task
@@ -544,10 +586,18 @@ def aws_setup():
 
 
 @task
-def aws_push(repo, ctr):
-    res = run_cfg('$aws ecr describe-repositories --repository-names {}'.format(repo), capture=True)
+def aws_repository_uri(name):
+    res = run_cfg('$aws ecr describe-repositories'
+                  ' --repository-names {}'.format(name), capture=True)
     res = json.loads(res)
     uri = res['repositories'][0]['repositoryUri']
+    print(uri)
+    return uri
+
+
+@task
+def aws_push(ctr, repo):
+    uri = aws_repository_uri(repo)
     run_cfg('docker tag {}:latest {}:latest'.format(ctr, uri))
     run_cfg('docker push {}:latest'.format(uri))
 
@@ -628,3 +678,6 @@ def aws_scp(family, src, dst):
 # @task
 # def aws_login():
     
+
+
+## RUN: docker run -it --rm --env-file app.env -p 80:80 -p 443:443 app

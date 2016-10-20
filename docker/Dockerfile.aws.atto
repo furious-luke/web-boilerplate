@@ -1,4 +1,4 @@
-FROM phusion/baseimage:latest
+FROM furiousluke/baseimage:latest
 MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
 CMD [ "/sbin/my_init" ]
 
@@ -59,12 +59,13 @@ ADD boilerplate/docker/daphne.conf /etc/service/app/app.d/
 ADD boilerplate/docker/channelsworker.conf /etc/service/app/app.d/
 
 # Nginx configuration.
-ADD boilerplate/docker/nginx.conf /etc/nginx/templ/nginx.conf
+ADD boilerplate/docker/nginx.aws.conf /etc/nginx/templ/nginx.conf
+ADD boilerplate/docker/nginx /etc/nginx/nginx
 ADD boilerplate/keys /etc/nginx/keys
+ENV PORT=80
 ENV WORKER_PROCESSES=1
 ENV WORKER_CONNECTIONS=16
 ENV SERVER_NAME=${project}
-ENV UPSTREAM=0.0.0.0
 ADD boilerplate/docker/nginx.sh /etc/service/nginx/run
 
 # Redis configuration.

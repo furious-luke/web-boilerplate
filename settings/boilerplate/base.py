@@ -179,4 +179,12 @@ LOGGING = {
             'class': 'logging.NullHandler',
         },
     },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'filters': [],
+            'propagate': True,
+            'level': 'INFO',
+        }
+    }
 }

@@ -5,6 +5,7 @@ RUN mkdir -p /run/nginx/templ && \
     apk add --update nginx gettext && \
     rm -rf /var/cache/apk/*
 
+ENV dummy=1
 ADD boilerplate/docker/nginx.dev.conf /etc/nginx/templ/nginx.conf
 ADD boilerplate/docker/nginx /etc/nginx/nginx
 ADD boilerplate/keys /etc/nginx/keys
