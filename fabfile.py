@@ -13,17 +13,22 @@ import boto3
 from boto.s3.key import Key
 
 
+DEFAULT_SERVICE = {
+    'atto': 'app',
+    'develop': 'web',
+}
+
+
 BASE_CONFIG = {
-    'compose': 'docker-compose -f $compose_file -f $compose_project_file -p $docker_project',
-    'compose_project_file': 'docker-compose.project.yml',
+    'capacity': 'develop',
+    'compose': 'docker-compose -f $compose_file -f docker/docker-compose.$capacity.yml -p $docker_project',
     'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
-    'service': 'app',
     'aws': 'aws --profile $aws_profile --region $aws_region'
 }
 
 DEV_CONFIG = {
     'docker_project': '${project}_dev',
-    'compose_file': 'boilerplate/docker/docker-compose.development.yml',
+    'compose_file': 'boilerplate/docker/docker-compose.develop.yml',
     'manage': '$run python3 -W ignore manage.py',
     'coverage': '$run coverage run --source="$project" manage.py test',
     'covhtml': '$run coverage html'
@@ -62,8 +67,16 @@ def prod_cfg(*args):
     return merge_cfgs(BASE_CONFIG, PROD_CONFIG, *args)
 
 
+def update_defaults(cfg):
+    defaults = {}
+    if 'service' not in cfg:
+        defaults['service'] = DEFAULT_SERVICE[cfg['capacity']]
+    return merge_cfgs(cfg, defaults)
+
+
 def run_cfg(cmd, dev=True, capture=False, **kwargs):
     cfg = dev_cfg(kwargs) if dev else prod_cfg(kwargs)
+    cfg = update_defaults(cfg)
     cmd = Template(cmd).substitute(cfg)
     return local(cmd, capture=capture)
 

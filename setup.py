@@ -120,7 +120,7 @@ if __name__ == '__main__':
     # Copy and transform files.
     copy_files([
         ('local_fabfile.py', 'fabfile.py'),
-        'docker/docker-compose.project.yml',
+        ('docker/docker', 'docker'),
         ('local_manage.py', 'manage.py'),
         '.dockerignore',
         '.gitignore',

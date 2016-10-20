@@ -1,0 +1,12 @@
+version: '2'
+services:
+
+  worker:
+    build:
+      args:
+        project: $project
+
+  web:
+    build:
+      args:
+        project: $project
