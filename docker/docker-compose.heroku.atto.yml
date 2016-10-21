@@ -26,13 +26,14 @@ services:
       - SECRET_KEY=dummy
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
+      - DEBUG=true
     links:
       - db
     volumes:
       - ..:/app/boilerplate
       - ../../var:/app/var
     ports:
-      - 8080:80
+      - 80:80
 
   nginx:
     image: furiousluke/nginx:latest
@@ -40,6 +41,6 @@ services:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.nginx
     ports:
-      - 8443:443
+      - 443:443
     links:
       - app

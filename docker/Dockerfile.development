@@ -5,28 +5,28 @@ FROM phusion/baseimage:latest
 MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
 CMD [ "/sbin/my_init" ]
 
-RUN mkdir -p /usr/local/src/requirements/boilerplate /usr/local/app \
+RUN mkdir -p /app/src/requirements/boilerplate /app \
     /etc/my_init.d
 
 RUN apt-get -y update
 RUN apt-get -y install python3 python3-pip git postgresql-client libpq-dev \
                libjpeg62 libjpeg-dev wget
 
-ADD boilerplate/requirements/boilerplate /usr/local/src/requirements/boilerplate/
-ADD requirements /usr/local/src/requirements/
-RUN pip3 install -r /usr/local/src/requirements/development.txt
+ADD boilerplate/requirements/boilerplate /app/src/requirements/boilerplate/
+ADD requirements /app/src/requirements/
+RUN pip3 install -r /app/src/requirements/development.txt
 
 RUN apt-get -y purge git libpq-dev wget
 RUN apt-get -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN echo /root > /etc/container_environment/HOME
 
-WORKDIR /usr/local/app
+WORKDIR /app
 EXPOSE 8000
 
 ARG project
 ENV DJANGO_SETTINGS_MODULE=${project}.settings.development
-ENV PYTHONPATH=/usr/local/app/${project}:$PYTHONPATH
+ENV PYTHONPATH=/app/${project}:$PYTHONPATH
 
 ARG run
 RUN mkdir -p /etc/service/${run}

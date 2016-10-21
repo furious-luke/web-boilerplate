@@ -18,7 +18,7 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - ../..:/usr/local/app
+      - ../..:/app
 
   worker:
     build:
@@ -27,6 +27,7 @@ services:
       args:
         run: worker
     environment:
+      - REDIS_URL=redis://redis:6379
       - WORKER_PROCESSES=1
       - WEB_THREADS=1
       - WORKER_THREADS=3
@@ -34,7 +35,7 @@ services:
       - db
       - redis
     volumes:
-      - ../..:/usr/local/app
+      - ../..:/app
 
   web:
     build:
@@ -42,6 +43,8 @@ services:
       dockerfile: boilerplate/docker/Dockerfile.development
       args:
         run: runserver
+    environment:
+      - REDIS_URL=redis://redis:6379
     links:
       - db
       - redis
@@ -49,4 +52,4 @@ services:
     ports:
       - 8000:8000
     volumes:
-      - ../..:/usr/local/app
+      - ../..:/app

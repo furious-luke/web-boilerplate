@@ -20,14 +20,18 @@ DEFAULT_SERVICE = {
 
 
 BASE_CONFIG = {
-    'capacity': 'develop',
-    'compose': 'docker-compose -f $compose_file -f docker/docker-compose.$capacity.yml -p $docker_project',
+    'app': '$project',
+    'layout': 'develop',
+    'platform': 'heroku',
+    'compose': 'docker-compose -f $compose_file -f docker/docker-compose.$layout.yml -p $docker_project',
     'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
-    'aws': 'aws --profile $aws_profile --region $aws_region'
+    'aws': 'aws --profile $aws_profile --region $aws_region',
+    'aws_region': 'ap-southeast-2'
 }
 
 DEV_CONFIG = {
     'docker_project': '${project}_dev',
+    'layout': 'develop',
     'compose_file': 'boilerplate/docker/docker-compose.develop.yml',
     'manage': '$run python3 -W ignore manage.py',
     'coverage': '$run coverage run --source="$project" manage.py test',
@@ -36,7 +40,7 @@ DEV_CONFIG = {
 
 PROD_CONFIG = {
     'docker_project': '$project',
-    'compose_file': 'boilerplate/docker/docker-compose.$platform.yml',
+    'compose_file': 'boilerplate/docker/docker-compose.$platform.$layout.yml',
     'run': '$compose run --rm --service-ports $service',
     'manage': '$run python3 -W ignore manage.py'
 }
@@ -70,15 +74,18 @@ def prod_cfg(*args):
 def update_defaults(cfg):
     defaults = {}
     if 'service' not in cfg:
-        defaults['service'] = DEFAULT_SERVICE[cfg['capacity']]
+        defaults['service'] = DEFAULT_SERVICE[cfg['layout']]
     return merge_cfgs(cfg, defaults)
 
 
-def run_cfg(cmd, dev=True, capture=False, **kwargs):
+def run_cfg(cmd, dev=True, capture=False, remote=False, **kwargs):
     cfg = dev_cfg(kwargs) if dev else prod_cfg(kwargs)
     cfg = update_defaults(cfg)
     cmd = Template(cmd).substitute(cfg)
-    return local(cmd, capture=capture)
+    if remote:
+        return run(cmd)
+    else:
+        return local(cmd, capture=capture)
 
 
 def get_aws_creds(profile):
@@ -92,7 +99,8 @@ def get_aws_creds(profile):
     return (('', ''), ('', ''))
 
 
-def aws_profile(profile):
+def aws_profile(profile=None):
+    profile = profile if profile is not None else BASE_CONFIG.get('aws_profile', None)
     env = {}
     if profile:
         access, secret = get_aws_creds(profile)
@@ -280,13 +288,6 @@ def collect_static(profile=None):
 
 
 @task
-def deploy():
-    """Deploy production to Heroku.
-    """
-    run('./scripts/release.sh')
-
-
-@task
 def down(prod=False):
     """Stop all running containers.
     """
@@ -440,18 +441,53 @@ def aws_create_user(name=None):
 
 
 @task
+def aws_create_role(name=None, policies=[]):
+    name = name if name is not None else '$project'
+
+    # Create the role.
+    run_cfg('$aws iam create-role --role-name %s'
+            ' --assume-role-policy-document'
+            ' file://boilerplate/scripts/ecs-assume-role.json' % name)
+
+    # Add policies to the role.
+    for policy in policies:
+        with tempfile.NamedTemporaryFile() as outf:
+            with open('./scripts/%s.json' % policy) as inf:
+                data = Template(inf.read()).substitute(prod_cfg(), name=name)
+            outf.write(data.encode())
+            outf.flush()
+            print(data)
+            run_cfg('$aws iam put-role-policy --role-name %s'
+                    ' --policy-name %s'
+                    ' --policy-document file://%s' %
+                    (name, policy, outf.name))
+
+
+@task
+def aws_create_ec2_role(prefix='ec2'):
+    role_name = prefix + '-role'
+    inst_name = prefix + '-profile'
+    aws_create_role(role_name, ['aws-logging-policy'])
+    run_cfg('$aws iam create-instance-profile --instance-profile-name %s'
+            % inst_name)
+    run_cfg('$aws iam add-role-to-instance-profile --instance-profile-name %s'
+            ' --role-name %s' % (inst_name, role_name))
+
+
+@task
 def aws_create_security_group():
-    with warn_only():
-        run_cfg('$aws ec2 create-security-group --group-name $app'
-                ' --description "$project security group"')
-        run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
-                ' --protocol tcp --port 22 --cidr 0.0.0.0/0')
-        run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
-                ' --protocol tcp --port 80 --cidr 0.0.0.0/0')
-        run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
-                ' --protocol tcp --port 443 --cidr 0.0.0.0/0')
-        run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
-                ' --protocol tcp --port 6379 --cidr 0.0.0.0/0')
+    run_cfg('$aws ec2 create-security-group --group-name $app'
+            ' --description "$project security group"')
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+            ' --protocol tcp --port 22 --cidr 0.0.0.0/0')
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+            ' --protocol tcp --port 80 --cidr 0.0.0.0/0')
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+            ' --protocol tcp --port 443 --cidr 0.0.0.0/0')
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+            ' --protocol tcp --port 6379 --cidr 0.0.0.0/0')
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+            ' --protocol tcp --port 5432 --cidr 0.0.0.0/0')
 
 
 @task
@@ -515,9 +551,8 @@ def aws_create_cluster():
 def aws_create_key_pair():
     res = run_cfg('$aws ec2 create-key-pair'
                   ' --key-name $app', capture=True)
-    print(res)
     res = json.loads(res)
-    with open('{}.pem'.format(res['KeyName'])) as keyf:
+    with open('{}.pem'.format(res['KeyName']), 'w') as keyf:
         keyf.write(res['KeyMaterial'])
 
 
@@ -553,9 +588,13 @@ def aws_run_instance():
     }
     image = ami_map[BASE_CONFIG['aws_region']]
     sg_id = aws_get_security_group_id()
+    # creds = aws_profile()
     with tempfile.NamedTemporaryFile() as outf:
         with open('boilerplate/scripts/arch-user-data.sh') as inf:
-            data = Template(inf.read()).substitute(prod_cfg())
+            data = Template(inf.read()).substitute(
+                prod_cfg(),
+                # **creds
+            )
         outf.write(data.encode())
         outf.flush()
         res = run_cfg('$aws ec2 run-instances'
@@ -564,44 +603,65 @@ def aws_run_instance():
                       ' --security-group-ids "{sg_id}"'
                       ' --user-data file://{user_data}'
                       ' --instance-type t2.micro'
+                      ' --iam-instance-profile Name=ec2-profile'
                       ' --associate-public-ip-address'
                       ' --count 1'.format(user_data=outf.name, sg_id=sg_id),
-                      image=image, capture=True)
-        print(res)
+                      image=image, capture=True, dev=False)
+        res = json.loads(res)
+        return res['Instances'][0]['InstanceId']
         # return json.loads(res)
 
 
 @task
 def aws_allocate_address(inst_id):
-    res = run_cfg('$aws ec2 allocate-address --domain vpc', capture=True)
+    res = run_cfg('$aws ec2 allocate-address --domain vpc', capture=True,
+                  dev=False)
     alloc_id = json.loads(res)['AllocationId']
     run_cfg('$aws ec2 associate-address --instance-id {}'
-            ' --allocation-id {}'.format(inst_id, alloc_id))
+            ' --allocation-id {}'.format(inst_id, alloc_id), dev=False)
+
+
+@task
+def aws_tag_instance(inst_id, **tags):
+    tags = ['Key=%s,Value=%s' % (k, v) for k, v in tags.items()]
+    run_cfg('$aws ec2 create-tags --resources {}'
+            ' --tags {}'.format(inst_id, ' '.join(tags)), dev=False)
 
 
 @task
 def aws_create_server():
+    # Currently only works for atto layout.
     inst_id = aws_run_instance()
-    run_cfg('$aws wait instance-running --instance-ids "{}"'.format(inst_id))
+    run_cfg('$aws ec2 wait instance-running --instance-ids "{}"'.format(
+        inst_id
+    ), dev=False)
+    aws_tag_instance(inst_id, project='$project', layout='$layout')
     aws_allocate_address(inst_id)
 
 
 @task
-def aws_setup():
-    aws_create_security_group()
-    aws_create_ecs_roles()
-    aws_docker_login()
-    aws_create_repository()
-    aws_create_repository('nginx')
+def aws_init():
+    aws_create_key_pair()
     with warn_only():
-        aws_register_task_definition('web')
-        aws_register_task_definition('worker')
+        aws_create_security_group()
+    aws_create_ec2_role()
+    # aws_create_ecs_roles()
+    aws_docker_login()
+    cfg = prod_cfg()
+    if cfg['layout'] == 'atto':
+        aws_create_repository('${project}_atto')
+        aws_create_server()
+    # aws_create_repository('nginx')
+    # with warn_only():
+    #     aws_register_task_definition('web')
+    #     aws_register_task_definition('worker')
 
 
 @task
 def aws_repository_uri(name):
     res = run_cfg('$aws ecr describe-repositories'
-                  ' --repository-names {}'.format(name), capture=True)
+                  ' --repository-names {}'.format(name), capture=True,
+                  dev=False)
     res = json.loads(res)
     uri = res['repositories'][0]['repositoryUri']
     print(uri)
@@ -611,13 +671,14 @@ def aws_repository_uri(name):
 @task
 def aws_push(ctr, repo):
     uri = aws_repository_uri(repo)
-    run_cfg('docker tag {}:latest {}:latest'.format(ctr, uri))
-    run_cfg('docker push {}:latest'.format(uri))
+    run_cfg('docker tag {}:latest {}:latest'.format(ctr, uri), dev=False)
+    run_cfg('docker push {}:latest'.format(uri), dev=False)
 
 
 @task
 def aws_list_tasks():
-    tasks = run_cfg('$aws ecs list-tasks --cluster $app', capture=True)
+    tasks = run_cfg('$aws ecs list-tasks --cluster $app', capture=True,
+                    dev=False)
     return json.loads(tasks)['taskArns']
 
 
@@ -625,7 +686,8 @@ def aws_list_tasks():
 def aws_describe_tasks():
     tasks = ' '.join(['"%s"' % t for t in aws_list_tasks()])
     tasks = run_cfg('$aws ecs describe-tasks --cluster $app'
-                    ' --tasks {}'.format(tasks), capture=True)
+                    ' --tasks {}'.format(tasks), capture=True,
+                    dev=False)
     return json.loads(tasks)
 
 
@@ -640,7 +702,8 @@ def aws_describe_tasks():
 def aws_describe_containers(arns):
     arns = ' '.join(['"%s"' % t for t in arns])
     ctrs = run_cfg('$aws ecs describe-container-instances --cluster $app'
-                   ' --container-instances {}'.format(arns), capture=True)
+                   ' --container-instances {}'.format(arns), capture=True,
+                   dev=False)
     return json.loads(ctrs)
 
 
@@ -648,7 +711,7 @@ def aws_describe_containers(arns):
 def aws_describe_instances(ids):
     ids = ' '.join(['"%s"' % i for i in ids])
     insts = run_cfg('$aws ec2 describe-instances --instance-ids {}'.format(ids),
-                    capture=True)
+                    capture=True, dev=False)
     return json.loads(insts)
 
 
@@ -681,15 +744,42 @@ def aws_ssh(family=None):
     else:
         dns = aws_public_dns(family)[0]
     if dns:
-        run_cfg('ssh -i "${app}.pem" root@%s' % dns)
+        run_cfg('ssh -i "${app}.pem" root@%s' % dns, dev=False)
 
 
 @task
 def aws_scp(family, src, dst):
     dns = aws_public_dns(family)
     if dns:
-        run_cfg('scp -i "${app}.pem" %s ec2-user@%s:%s' % (src, dns[0], dst))
+        run_cfg('scp -i "${app}.pem" %s ec2-user@%s:%s' % (src, dns[0], dst),
+                dev=False)
 
+
+@task
+def aws_reload():
+    uri = aws_repository_uri('${project}_atto')
+    cmd = [
+        # '`aws --region $aws_region ecr get-login`',
+        'docker pull %s' % uri,
+        'docker tag %s app' % uri,
+        'systemctl restart app.service'
+    ]
+    cmd = ' && '.join(cmd)
+    run_cfg(cmd, remote=True)
+
+
+@task
+def deploy():
+    cfg = prod_cfg()
+    if cfg['platform'] == 'heroku':
+        if cfg['layout'] == 'atto':
+            ctr = '{project}_app'.format(**cfg)
+            heroku_push(ctr, 'web')
+    elif cfg['platform'] == 'aws':
+        if cfg['layout'] == 'atto':
+            ctr = '{project}_app'.format(**cfg)
+            aws_push(ctr, '${project}_atto')
+            aws_reload()
 
 # @task
 # def aws_login():
@@ -697,3 +787,12 @@ def aws_scp(family, src, dst):
 
 
 ## RUN: docker run -it --rm --env-file app.env -p 80:80 -p 443:443 app
+
+
+# TODO:
+#  * Set environment variables from command line.
+#  * Provision database.
+#    - Set database url.
+#  * Handle next layout. :(
+#  * Setup local SSH config to automaticallyl use PEM file.
+#    (http://stackoverflow.com/questions/5069895/connecting-to-ec2-using-keypair-pem-file-via-fabric)

@@ -7,3 +7,6 @@ After=docker.service
 Type=simple
 ExecStart=docker run --rm --name app --env-file /root/app.env -p 80:80 -p 443:443 app
 ExecReload=docker stop app
+
+[Install]
+WantedBy=multi-user.target
