@@ -6,11 +6,15 @@ import datetime
 import binascii
 import re
 import json
+import shlex
+import random
+import string
 from string import Template
 
-from fabric.api import run, task, local, shell_env, warn_only, hide
+from fabric.api import run, task, local, shell_env, warn_only, hide, env
 import boto3
 from boto.s3.key import Key
+import dotenv
 
 
 DEFAULT_SERVICE = {
@@ -78,12 +82,17 @@ def update_defaults(cfg):
     return merge_cfgs(cfg, defaults)
 
 
-def run_cfg(cmd, dev=True, capture=False, remote=False, **kwargs):
-    cfg = dev_cfg(kwargs) if dev else prod_cfg(kwargs)
+def subs(cmd, dev=True, extra={}):
+    cfg = dev_cfg(extra) if dev else prod_cfg(extra)
     cfg = update_defaults(cfg)
     cmd = Template(cmd).substitute(cfg)
+    return cmd
+
+
+def run_cfg(cmd, dev=True, capture=False, remote=False, **kwargs):
+    cmd = subs(cmd, dev, kwargs)
     if remote:
-        return run(cmd)
+        return run(cmd, pty=True)
     else:
         return local(cmd, capture=capture)
 
@@ -107,6 +116,10 @@ def aws_profile(profile=None):
         env[access[0].upper()] = access[1]
         env[secret[0].upper()] = secret[1]
     return env
+
+
+def gen_secret(length=64):
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(length))
 
 
 @task
@@ -339,8 +352,7 @@ def deploy_db(app, bucket_name):
 
 
 @task
-def heroku(cmd, app=None, sudo=False):
-    app = app or BASE_CONFIG['app']
+def heroku_run(cmd, sudo=False):
     cmd = 'heroku {} -a {}'.format(cmd, app)
     if sudo:
         cmd = 'sudo ' + cmd
@@ -348,15 +360,16 @@ def heroku(cmd, app=None, sudo=False):
 
 
 @task
-def remote(cmd, app=None):
-    app = app or BASE_CONFIG['app']
-    local('heroku run {} -a {}'.format(cmd, app))
+def remote(cmd):
+    if BASE_CONFIG['platform'] == 'heroku':
+        heroku_run('run {} -a $app'.format(cmd))
+    elif BASE_CONFIG['platform'] == 'aws':
+        aws_run(cmd)
 
 
 @task(alias='rem')
-def remote_manage(cmd, app=None):
-    app = app or BASE_CONFIG['app']
-    local('heroku run python3 manage.py {} -a {}'.format(cmd, app))
+def remote_manage(cmd):
+    remote('python3 manage.py {}'.format(cmd))
 
 
 @task
@@ -552,8 +565,9 @@ def aws_create_key_pair():
     res = run_cfg('$aws ec2 create-key-pair'
                   ' --key-name $app', capture=True)
     res = json.loads(res)
-    with open('{}.pem'.format(res['KeyName']), 'w') as keyf:
-        keyf.write(res['KeyMaterial'])
+    if 'KeyName' in res and 'KeyMaterial' in res:
+        with open('{}.pem'.format(res['KeyName']), 'w') as keyf:
+            keyf.write(res['KeyMaterial'])
 
 
 # Note: Not needed for ECS logging.
@@ -589,11 +603,13 @@ def aws_run_instance():
     image = ami_map[BASE_CONFIG['aws_region']]
     sg_id = aws_get_security_group_id()
     # creds = aws_profile()
+    secret_key = gen_secret()
     with tempfile.NamedTemporaryFile() as outf:
         with open('boilerplate/scripts/arch-user-data.sh') as inf:
             data = Template(inf.read()).substitute(
                 prod_cfg(),
-                # **creds
+                # **creds,
+                secret_key=secret_key
             )
         outf.write(data.encode())
         outf.flush()
@@ -641,20 +657,18 @@ def aws_create_server():
 
 @task
 def aws_init():
-    aws_create_key_pair()
     with warn_only():
-        aws_create_security_group()
-    aws_create_ec2_role()
-    # aws_create_ecs_roles()
-    aws_docker_login()
+        aws_create_key_pair()
+        with warn_only():
+            aws_create_security_group()
+        aws_create_ec2_role()
+        aws_docker_login()
     cfg = prod_cfg()
     if cfg['layout'] == 'atto':
-        aws_create_repository('${project}_atto')
+        with warn_only():
+            aws_create_repository('${project}_atto')
         aws_create_server()
-    # aws_create_repository('nginx')
-    # with warn_only():
-    #     aws_register_task_definition('web')
-    #     aws_register_task_definition('worker')
+        aws_create_db()
 
 
 @task
@@ -738,16 +752,6 @@ def aws_public_dns(family):
 
 
 @task
-def aws_ssh(family=None):
-    if 'ip' in BASE_CONFIG:
-        dns = '$ip'
-    else:
-        dns = aws_public_dns(family)[0]
-    if dns:
-        run_cfg('ssh -i "${app}.pem" root@%s' % dns, dev=False)
-
-
-@task
 def aws_scp(family, src, dst):
     dns = aws_public_dns(family)
     if dns:
@@ -756,16 +760,98 @@ def aws_scp(family, src, dst):
 
 
 @task
+def aws_create_db():
+
+    # Create the database and wait for it to be ready.
+    sgid = aws_get_security_group_id()
+    cmd = (
+        '$aws rds create-db-instance'
+        ' --db-name $project'
+        ' --db-instance-identifier $project'
+        ' --db-instance-class db.t2.micro'
+        ' --engine postgres'
+        ' --allocated-storage 5'
+        ' --master-username $project'
+        ' --master-user-password $password'
+        ' --backup-retention-period 0'
+        ' --vpc-security-group-ids $sgid'
+    )
+    password = gen_secret(16)
+    res = run_cfg(cmd, capture=True, password=password, sgid=sgid)
+    res = json.loads(res)
+    run_cfg('$aws rds wait db-instance-available --db-instance-identifier $project')
+
+    # Set the database URL in the environment.
+    cmd = (
+        '$aws rds describe-db-instances'
+        ' --db-instance-identifier $project'
+    )
+    res = json.loads(run_cfg(cmd, capture=True))
+    endpoint = res['DBInstances'][0]['Endpoint']
+    url = 'postgres://$project:$password@$address:$port/$project'
+    url = subs(url, dev=False, extra={
+        'password': password,
+        'address': endpoint['Address'],
+        'port': str(endpoint['Port'])
+    })
+    aws_config('set', 'DATABASE_URL', url)
+
+
+@task
+def aws_public_ip():
+    res = run_cfg('$aws ec2 describe-instances --filters Name=tag:project,'
+                  'Values=$project Name=tag:layout,Values=atto', capture=True)
+    res = json.loads(res)
+    ip = res['Reservations'][0]['Instances'][0]['PublicIpAddress']
+    print(ip)
+    return ip
+
+
+def aws_add_env():
+    cfg = prod_cfg()
+    env.hosts = [aws_public_ip()]
+    env.host_string = env.hosts[0]
+    env.user = 'root'
+    env.key_filename = [os.path.join(os.getcwd(), cfg['project'] + '.pem')]
+
+
+@task
 def aws_reload():
+    aws_add_env()
     uri = aws_repository_uri('${project}_atto')
     cmd = [
-        # '`aws --region $aws_region ecr get-login`',
+        '`aws --region $aws_region ecr get-login`',
         'docker pull %s' % uri,
         'docker tag %s app' % uri,
         'systemctl restart app.service'
     ]
     cmd = ' && '.join(cmd)
     run_cfg(cmd, remote=True)
+
+
+@task
+def aws_config(action=None, key=None, value=None):
+    aws_add_env()
+    if value is not None:
+        value = shlex.quote(value)
+    cmd = dotenv.get_cli_string('/root/app.env', action, key, value)
+    cmd = cmd.split()
+    cmd = cmd[0] + ' -q never ' + ' '.join(cmd[1:])
+    run_cfg(cmd, remote=True)
+
+
+@task
+def aws_run(cmd):
+    aws_add_env()
+    cmd = '/usr/bin/app {}'.format(cmd)
+    run_cfg(cmd, dev=False, remote=True)
+
+
+@task
+def aws_ssh(family=None):
+    with hide('running'):
+        ip = aws_public_ip()
+    run_cfg('ssh -i "${app}.pem" root@%s' % ip, dev=False)
 
 
 @task
@@ -790,9 +876,6 @@ def deploy():
 
 
 # TODO:
-#  * Set environment variables from command line.
 #  * Provision database.
 #    - Set database url.
 #  * Handle next layout. :(
-#  * Setup local SSH config to automaticallyl use PEM file.
-#    (http://stackoverflow.com/questions/5069895/connecting-to-ec2-using-keypair-pem-file-via-fabric)

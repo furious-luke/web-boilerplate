@@ -3,10 +3,11 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
 # Prepare some packages.
 pacman -Syy
-pacman --noconfirm -S docker unzip python-pip
+pacman --noconfirm -S docker unzip python-pip git
 
 # Install awscli and credentials for various AWS purposes.
-pip install awscli
+pip install awscli python-dotenv
+pip install -e git+https://github.com/jtrh/python-dotenv@fix-dotenv-list-for-loop#egg=python-dotenv
 
 # Configure docker and launch.
 sed -i 's/dockerd/dockerd --log-driver=journald/g' /usr/lib/systemd/system/docker.service
@@ -41,10 +42,20 @@ EOF
 systemctl enable journald-cloudwatch-logs.service
 systemctl start journald-cloudwatch-logs.service
 
+# Setup some default keys to use before we have a DNS, and
+# haven't run certbot yet.
+mkdir -p /etc/letsencrypt/default
+openssl req -x509 -newkey rsa:2048 -keyout /etc/letsencrypt/default/privkey.key -out /etc/letsencrypt/default/cert.pem -nodes -subj '/CN=localhost'
+cat /etc/letsencrypt/default/privkey.key /etc/letsencrypt/default/cert.pem > /etc/letsencrypt/default/fullchain.pem
+
 # Setup the base level application. This will eventually be
 # replaced by something more intelligent that can launch and
 # maintain multiple containers.
-touch /root/app.env
+cat > /usr/bin/app <<EOF
+#!/bin/bash
+/usr/bin/docker run --rm --env-file /root/app.env app "$@"
+EOF
+chmod u+x /usr/bin/app
 cat > /etc/systemd/system/app.service <<EOF
 [Unit]
 Description=The App
@@ -53,10 +64,17 @@ After=docker.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/docker run --rm --name app --env-file /root/app.env -p 80:80 -p 443:443 app
+ExecStart=/usr/bin/docker run --name app --rm --env-file /root/app.env -v /var/lib/letsencrypt:/var/lib/letsencrypt -v /etc/letsencrypt/default:/etc/nginx/keys -p 80:80 -p 443:443 app
 ExecReload=/usr/bin/docker stop app
 
 [Install]
 WantedBy=multi-user.target
+EOF
+cat > /root/app.env <<EOF
+SECRET_KEY=$secret_key
+WEB_PROCESSES=1
+WEB_THREADS=1
+WORKER_PROCESSES=1
+WORKER_THREADS=1
 EOF
 systemctl enable app.service
