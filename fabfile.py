@@ -3,11 +3,14 @@
 # Provision compute hardware.
 #   TODO: Wait for AWS user data to finish running.
 # Provision DB.
+# Create log group. (AWS) TODO: Do this automatically
 # Deploy code.
+# Migrate.
 #
 
 import sys
 import os
+import stat
 import shutil
 import tempfile
 import datetime
@@ -21,7 +24,6 @@ from string import Template
 
 from fabric.api import run, task, local, shell_env, warn_only, hide, env
 import boto3
-from boto.s3.key import Key
 import dotenv
 
 
@@ -497,17 +499,17 @@ def aws_create_ec2_role(prefix='ec2'):
 
 @task
 def aws_create_security_group():
-    run_cfg('$aws ec2 create-security-group --group-name $app'
+    run_cfg('$aws ec2 create-security-group --group-name $project'
             ' --description "$project security group"')
-    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $project'
             ' --protocol tcp --port 22 --cidr 0.0.0.0/0')
-    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $project'
             ' --protocol tcp --port 80 --cidr 0.0.0.0/0')
-    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $project'
             ' --protocol tcp --port 443 --cidr 0.0.0.0/0')
-    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $project'
             ' --protocol tcp --port 6379 --cidr 0.0.0.0/0')
-    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $app'
+    run_cfg('$aws ec2 authorize-security-group-ingress --group-name $project'
             ' --protocol tcp --port 5432 --cidr 0.0.0.0/0')
 
 
@@ -539,7 +541,7 @@ def aws_docker_login():
 
 @task
 def aws_create_repository(repo=None):
-    repo = '$app' if repo is None else repo
+    repo = '$project' if repo is None else repo
     with warn_only():
         run_cfg('$aws ecr create-repository --repository-name {}'.format(repo))
 
@@ -565,19 +567,21 @@ def aws_register_task_definition(family):
 
 @task
 def aws_create_cluster():
-    run_cfg('$aws ecs create-cluster --cluster-name $app')
+    run_cfg('$aws ecs create-cluster --cluster-name $project')
 
 
 @task
 def aws_create_key_pair():
     res = run_cfg('$aws ec2 create-key-pair'
-                  ' --key-name $app', capture=True)
+                  ' --key-name $project', capture=True)
     try:
         res = json.loads(res)
     except:
         return
-    with open('{}.pem'.format(res['KeyName']), 'w') as keyf:
+    fn = '{}.pem'.format(res['KeyName'])
+    with open(fn, 'w') as keyf:
         keyf.write(res['KeyMaterial'])
+    os.chmod(fn, stat.S_IRUSR | stats.S_IWUSR)
 
 
 # Note: Not needed for ECS logging.
@@ -590,7 +594,7 @@ def aws_create_key_pair():
 
 @task
 def aws_get_security_group_id(name=None):
-    name = '$app' if name is None else name
+    name = '$project' if name is None else name
     grps = run_cfg('$aws ec2 describe-security-groups'
                    ' --group-name {}'.format(name), capture=True)
     grps = json.loads(grps)
@@ -625,7 +629,7 @@ def aws_run_instance():
         outf.flush()
         res = run_cfg('$aws ec2 run-instances'
                       ' --image-id $image'
-                      ' --key-name $app'
+                      ' --key-name $project'
                       ' --security-group-ids "{sg_id}"'
                       ' --user-data file://{user_data}'
                       ' --instance-type t2.micro'
@@ -699,7 +703,7 @@ def aws_push(ctr, repo):
 
 @task
 def aws_list_tasks():
-    tasks = run_cfg('$aws ecs list-tasks --cluster $app', capture=True,
+    tasks = run_cfg('$aws ecs list-tasks --cluster $project', capture=True,
                     dev=False)
     return json.loads(tasks)['taskArns']
 
@@ -707,7 +711,7 @@ def aws_list_tasks():
 @task
 def aws_describe_tasks():
     tasks = ' '.join(['"%s"' % t for t in aws_list_tasks()])
-    tasks = run_cfg('$aws ecs describe-tasks --cluster $app'
+    tasks = run_cfg('$aws ecs describe-tasks --cluster $project'
                     ' --tasks {}'.format(tasks), capture=True,
                     dev=False)
     return json.loads(tasks)
@@ -723,7 +727,7 @@ def aws_describe_tasks():
 @task
 def aws_describe_containers(arns):
     arns = ' '.join(['"%s"' % t for t in arns])
-    ctrs = run_cfg('$aws ecs describe-container-instances --cluster $app'
+    ctrs = run_cfg('$aws ecs describe-container-instances --cluster $project'
                    ' --container-instances {}'.format(arns), capture=True,
                    dev=False)
     return json.loads(ctrs)
@@ -763,7 +767,7 @@ def aws_public_dns(family):
 def aws_scp(family, src, dst):
     dns = aws_public_dns(family)
     if dns:
-        run_cfg('scp -i "${app}.pem" %s ec2-user@%s:%s' % (src, dns[0], dst),
+        run_cfg('scp -i "${project}.pem" %s ec2-user@%s:%s' % (src, dns[0], dst),
                 dev=False)
 
 
@@ -808,9 +812,17 @@ def aws_create_db():
 @task
 def aws_public_ip():
     res = run_cfg('$aws ec2 describe-instances --filters Name=tag:project,'
-                  'Values=$project Name=tag:layout,Values=atto', capture=True)
+                  'Values=$project Name=tag:layout,Values=atto'
+                  ' Name=instance-state-name,Values=running',
+                  capture=True)
     res = json.loads(res)
-    ip = res['Reservations'][0]['Instances'][0]['PublicIpAddress']
+    for rsrv in res['Reservations']:
+        try:
+            ip = rsrv['Instances'][0]['PublicIpAddress']
+        except:
+            pass
+        else:
+            break
     print(ip)
     return ip
 
@@ -859,7 +871,13 @@ def aws_run(cmd):
 def aws_ssh(family=None):
     with hide('running'):
         ip = aws_public_ip()
-    run_cfg('ssh -i "${app}.pem" root@%s' % ip, dev=False)
+    run_cfg('ssh -i "${project}.pem" root@%s' % ip, dev=False)
+
+
+@task
+def aws_restart():
+    aws_add_env()
+    run_cfg('systemctl restart app.service', remote=True)
 
 
 @task
@@ -874,16 +892,3 @@ def deploy():
             ctr = '{project}_app'.format(**cfg)
             aws_push(ctr, '${project}_atto')
             aws_reload()
-
-# @task
-# def aws_login():
-    
-
-
-## RUN: docker run -it --rm --env-file app.env -p 80:80 -p 443:443 app
-
-
-# TODO:
-#  * Provision database.
-#    - Set database url.
-#  * Handle next layout. :(

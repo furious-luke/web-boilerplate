@@ -1,6 +1,9 @@
 #!/bin/bash
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
+# NOTE: Because we use Python's Template substitution on this file, all dollar signs
+# must be escaped with another dollar sign: i.e. $$.
+
 # Prepare some packages.
 pacman -Syy
 pacman --noconfirm -S docker unzip python-pip git
@@ -53,7 +56,7 @@ cat /etc/letsencrypt/default/privkey.key /etc/letsencrypt/default/cert.pem > /et
 # maintain multiple containers.
 cat > /usr/bin/app <<EOF
 #!/bin/bash
-/usr/bin/docker run --rm --env-file /root/app.env app "$@"
+/usr/bin/docker run --rm --env-file /root/app.env app "\$$\@"
 EOF
 chmod u+x /usr/bin/app
 cat > /etc/systemd/system/app.service <<EOF
