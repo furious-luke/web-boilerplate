@@ -1,3 +1,11 @@
+#
+# Initialise platform.
+# Provision compute hardware.
+#   TODO: Wait for AWS user data to finish running.
+# Provision DB.
+# Deploy code.
+#
+
 import sys
 import os
 import shutil
@@ -564,10 +572,12 @@ def aws_create_cluster():
 def aws_create_key_pair():
     res = run_cfg('$aws ec2 create-key-pair'
                   ' --key-name $app', capture=True)
-    res = json.loads(res)
-    if 'KeyName' in res and 'KeyMaterial' in res:
-        with open('{}.pem'.format(res['KeyName']), 'w') as keyf:
-            keyf.write(res['KeyMaterial'])
+    try:
+        res = json.loads(res)
+    except:
+        return
+    with open('{}.pem'.format(res['KeyName']), 'w') as keyf:
+        keyf.write(res['KeyMaterial'])
 
 
 # Note: Not needed for ECS logging.
@@ -667,8 +677,6 @@ def aws_init():
     if cfg['layout'] == 'atto':
         with warn_only():
             aws_create_repository('${project}_atto')
-        aws_create_server()
-        aws_create_db()
 
 
 @task
