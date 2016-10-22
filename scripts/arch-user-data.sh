@@ -69,6 +69,8 @@ After=docker.service
 Type=simple
 ExecStart=/usr/bin/docker run --name app --rm --env-file /root/app.env -v /var/lib/letsencrypt:/var/lib/letsencrypt -v /etc/letsencrypt/default:/etc/nginx/keys -p 80:80 -p 443:443 app
 ExecReload=/usr/bin/docker stop app
+Restart=on-failure
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
