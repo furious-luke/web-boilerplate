@@ -15,7 +15,7 @@ services:
     environment:
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
-      - WEB_PROCESSES=1
+      - WEB_PROCESSES=3
       - SECRET_KEY=dummy
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -37,7 +37,7 @@ services:
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://redis:6379
       - WORKER_PROCESSES=1
-      - WEB_THREADS=1
+      - WEB_THREADS=3
       - WORKER_THREADS=1
       - SECRET_KEY=dummy
       - AWS_ACCESS_KEY_ID
