@@ -1,27 +1,41 @@
 # AWS production configuration. Must override `project`.
-# This is "atto" size. Everything is built into a single
-# container.
+# This is "pico" size.
 #
 # We need the nginx service to simulate SSL for us.
 
 version: '2'
 services:
 
-  db:
-    image: postgres:latest
-    volumes:
-      - ../../var:/share
-
   web:
     build:
       context: ../..
-      dockerfile: boilerplate/docker/Dockerfile.atto
+      dockerfile: boilerplate/docker/Dockerfile.pico.web
       args:
         platform: heroku
     environment:
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
-      - REDIS_URL=redis://0.0.0.0:6379
+      - REDIS_URL=redis://redis:6379
       - WEB_PROCESSES=1
+      - SECRET_KEY=dummy
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DEBUG=true
+    links:
+      - db
+      - redis
+    volumes:
+      - ..:/app/boilerplate
+      - ../../var:/app/var
+    ports:
+      - 80:80
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.pico.worker
+    environment:
+      - DATABASE_URL=postgres://postgres:@db:5432/postgres
+      - REDIS_URL=redis://redis:6379
       - WORKER_PROCESSES=1
       - WEB_THREADS=1
       - WORKER_THREADS=1
@@ -31,11 +45,18 @@ services:
       - DEBUG=true
     links:
       - db
+      - redis
     volumes:
       - ..:/app/boilerplate
       - ../../var:/app/var
-    ports:
-      - 80:80
+
+  db:
+    image: postgres:latest
+    volumes:
+      - ../../var:/share
+
+  redis:
+    image: redis:alpine
 
   nginx:
     image: furiousluke/nginx:latest

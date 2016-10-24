@@ -1,0 +1,51 @@
+FROM furiousluke/baseimage:latest
+MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
+CMD [ "/sbin/my_init" ]
+
+RUN mkdir -p /app/requirements/boilerplate /app/var /app/boilerplate \
+    /etc/service/app/app.d /etc/service/nginx \
+    /etc/my_init.d
+
+# Prepare requirements.
+ADD boilerplate/requirements/boilerplate /app/requirements/boilerplate
+ADD requirements /app/requirements
+
+# Base setup and installation.
+RUN apt-get -y update && \
+    apt-get -y install python3 python3-pip git postgresql-client libpq-dev \
+               libjpeg62 libjpeg-dev wget nginx gettext && \
+    pip3 install -r /app/requirements/production.txt && \
+    apt-get -y purge git libpq-dev wget && \
+    apt-get -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    echo /root > /etc/container_environment/HOME
+
+# This is used in the configuration.
+ARG project
+ARG platform
+
+# Nginx configuration.
+ADD boilerplate/docker/nginx.${platform}.conf /etc/nginx/templ/nginx.conf
+ADD boilerplate/docker/nginx /etc/nginx/nginx
+ADD boilerplate/keys /etc/nginx/keys
+ENV PORT=80
+ENV WORKER_PROCESSES=1
+ENV WORKER_CONNECTIONS=16
+ENV SERVER_NAME=${project}
+ADD boilerplate/docker/nginx.sh /etc/service/nginx/run
+
+# App configuration.
+ADD ${project} /app/${project}/
+ENV PYTHONPATH=/app/${project}:$PYTHONPATH
+ENV DJANGO_SETTINGS_MODULE=${project}.settings.production
+ENV ASGI_APP=${project}.asgi:channel_layer
+ADD manage.py /app/
+ADD webpack-stats.production.json /app/
+ADD scripts/*.sh /app/scripts/
+ADD scripts/*.conf /app/scripts/
+ADD boilerplate/__init__.py /app/boilerplate
+ADD boilerplate/manage.py /app/boilerplate
+ADD boilerplate/docker/web.sh /etc/service/app/run
+ADD boilerplate/docker/web.conf /etc/service/app/
+ADD boilerplate/docker/daphne.conf /etc/service/app/app.d/
+
+WORKDIR /app

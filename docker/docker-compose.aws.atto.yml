@@ -10,10 +10,12 @@ services:
     volumes:
       - ../../var:/share
 
-  app:
+  web:
     build:
       context: ../..
-      dockerfile: boilerplate/docker/Dockerfile.aws.atto
+      dockerfile: boilerplate/docker/Dockerfile.atto
+      args:
+        platform: aws
     environment:
       - DATABASE_URL=postgres://postgres:@db:5432/postgres
       - REDIS_URL=redis://0.0.0.0:6379

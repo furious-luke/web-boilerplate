@@ -28,8 +28,9 @@ import dotenv
 
 
 DEFAULT_SERVICE = {
-    'atto': 'app',
     'develop': 'web',
+    'atto': 'web',
+    'pico': 'web'
 }
 
 
@@ -885,10 +886,15 @@ def deploy():
     cfg = prod_cfg()
     if cfg['platform'] == 'heroku':
         if cfg['layout'] == 'atto':
-            ctr = '{project}_app'.format(**cfg)
+            ctr = '{project}_web'.format(**cfg)
             heroku_push(ctr, 'web')
+        elif cfg['layout'] == 'pico':
+            ctr = '{project}_web'.format(**cfg)
+            heroku_push(ctr, 'web')
+            ctr = '{project}_worker'.format(**cfg)
+            heroku_push(ctr, 'worker')
     elif cfg['platform'] == 'aws':
         if cfg['layout'] == 'atto':
-            ctr = '{project}_app'.format(**cfg)
+            ctr = '{project}_web'.format(**cfg)
             aws_push(ctr, '${project}_atto')
             aws_reload()
