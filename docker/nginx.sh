@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Generate our upstream string.
-WEB_PROCESSES=3
 UPSTREAM=
 for ii in $(seq 0 $(($WEB_PROCESSES - 1))); do
     x=$(printf "80%02d" $ii)
