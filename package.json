@@ -1,7 +1,7 @@
 {
-  "name": "",
+  "name": "replace-me",
   "version": "0.0.1",
-  "description": "",
+  "description": "replace-me",
   "main": "",
   "dependencies": {
     "bootstrap": "^3.3.6",
@@ -63,9 +63,9 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "replace-me"
   },
-  "author": "",
-  "license": "",
-  "homepage": ""
+  "author": "replace-me",
+  "license": "replace-me",
+  "homepage": "replace-me"
 }

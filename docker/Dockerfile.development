@@ -6,6 +6,7 @@ MAINTAINER Luke Hodkinson <furious.luke@gmail.com>
 CMD [ "/sbin/my_init" ]
 
 RUN mkdir -p /app/src/requirements/boilerplate /app \
+    /etc/service/app/app.d \
     /etc/my_init.d
 
 RUN apt-get -y update
@@ -30,4 +31,6 @@ ENV PYTHONPATH=/app/${project}:$PYTHONPATH
 
 ARG run
 RUN mkdir -p /etc/service/${run}
-ADD boilerplate/docker/${run}.sh /etc/service/${run}/run
+ADD boilerplate/docker/${run}.sh /etc/service/app/run
+ADD boilerplate/docker/worker.conf /etc/service/app/
+ADD boilerplate/docker/channelsworker.conf /etc/service/app/app.d/

@@ -7,7 +7,23 @@ import subprocess
 from string import Template
 
 
+def copy_dir(src, dst, data):
+    if not os.path.exists(dst):
+        try:
+            os.mkdir(dst)
+        except:
+            pass
+    for entry in os.listdir(src):
+        copy_file(
+            os.path.join(src, entry),
+            os.path.join(dst, entry),
+            data
+        )
+
+
 def copy_file(src, dst, data=None):
+    if os.path.isdir(src):
+        return copy_dir(src, dst, data)
     if not os.path.exists(dst):
         if data:
             with open(src, 'r') as in_f:
@@ -31,7 +47,10 @@ def copy_files(files, data=None):
             src = info
             dst = os.path.basename(src)
         src = os.path.join('boilerplate', src)
-        copy_file(src, dst, data)
+        if os.path.isdir(src):
+            copy_dir(src, dst, data)
+        else:
+            copy_file(src, dst, data)
 
 
 def symlink_files(files):
