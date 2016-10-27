@@ -19,4 +19,5 @@ django-webpack-loader
 django-redis
 -e git+https://github.com/furious-luke/channels@82ee92ab4753892f771b8cf409b327d804f78e9f#egg=channels
 -e git+https://github.com/furious-luke/asgi_redis@aeaa9a1470861d68ec7cab52c58efa84e23a8ff7#egg=asgi_redis
-django-cq==0.1.7
+-e git+https://github.com/furious-luke/django-redis-channel-layer@d4615c0f64ea3ee3eecc63a102121c6273b3180a#egg=django-redis-channel-layer
+django-cq==0.1.9

@@ -132,14 +132,14 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
 
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'asgi_redis.DjangoRedisChannelLayer',
+        'BACKEND': 'redis_channel_layer.DjangoRedisChannelLayer',
         'CONFIG': {
             'hosts': [REDIS_URL],
         },
         'ROUTING': PROJECT + '.urls.channels.channel_routing'
     },
     'long': {
-        'BACKEND': 'asgi_redis.DjangoRedisChannelLayer',
+        'BACKEND': 'redis_channel_layer.DjangoRedisChannelLayer',
         'CONFIG': {
             'hosts': [REDIS_URL],
             'expiry': 1800,
