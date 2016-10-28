@@ -11,8 +11,6 @@ ADD boilerplate/docker/nginx /etc/nginx/nginx
 ADD boilerplate/keys /etc/nginx/keys
 
 ENV PORT=80
-ENV WORKER_PROCESSES=1
-ENV WORKER_CONNECTIONS=16
 ENV SERVER_NAME=dev
 
-CMD envsubst '$WORKER_PROCESSES $WORKER_CONNECTIONS $SERVER_NAME $UPSTREAM' < /etc/nginx/templ/nginx.conf > /etc/nginx/nginx.conf && nginx -g 'daemon off;'
+CMD envsubst '$SERVER_NAME $UPSTREAM' < /etc/nginx/templ/nginx.conf > /etc/nginx/nginx.conf && nginx -g 'daemon off;'

@@ -47,8 +47,6 @@ ADD boilerplate/docker/nginx.${platform}.conf /etc/nginx/templ/nginx.conf
 ADD boilerplate/docker/nginx /etc/nginx/nginx
 ADD boilerplate/keys /etc/nginx/keys
 ENV PORT=80
-ENV WORKER_PROCESSES=1
-ENV WORKER_CONNECTIONS=16
 ENV SERVER_NAME=${project}
 ADD boilerplate/docker/nginx.sh /etc/service/nginx/run
 
