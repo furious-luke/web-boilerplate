@@ -246,7 +246,7 @@ def reset_db(remote=False, db=None):
     else:
         if db is None:
             db = 'DATABASE_URL'
-        heroku('pg:reset {}'.format(db))
+        heroku_run('pg:reset {} -a $app'.format(db))
 
 
 @task(alias='csu')
@@ -364,10 +364,10 @@ def deploy_db(app, bucket_name):
 
 @task
 def heroku_run(cmd, sudo=False):
-    cmd = 'heroku {} -a {}'.format(cmd, app)
+    cmd = 'heroku {}'.format(cmd)
     if sudo:
         cmd = 'sudo ' + cmd
-    local(cmd)
+    run_cfg(cmd, dev=False)
 
 
 @task
