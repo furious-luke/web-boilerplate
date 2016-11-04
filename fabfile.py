@@ -24,7 +24,10 @@ from string import Template
 
 from fabric.api import run, task, local, shell_env, warn_only, hide, env
 import boto3
-import dotenv
+try:
+    import dotenv
+except:
+    pass
 
 
 DEFAULT_SERVICE = {
