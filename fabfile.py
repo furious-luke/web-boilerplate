@@ -901,3 +901,12 @@ def deploy():
             ctr = '{project}_web'.format(**cfg)
             aws_push(ctr, '${project}_atto')
             aws_reload()
+
+
+@task
+def go():
+    build()
+    local('yarn install')
+    reset_db()
+    migrate()
+    manage('demo')
