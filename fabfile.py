@@ -122,13 +122,13 @@ def get_aws_creds(profile):
     return (('', ''), ('', ''))
 
 
-def aws_profile(profile=None):
+def aws_profile(profile=None, boto=False):
     profile = profile if profile is not None else BASE_CONFIG.get('aws_profile', None)
     env = {}
     if profile:
         access, secret = get_aws_creds(profile)
-        env[access[0].upper()] = access[1]
-        env[secret[0].upper()] = secret[1]
+        env[access[0].lower() if boto else access[0].upper()] = access[1]
+        env[secret[0].lower() if boto else secret[0].upper()] = secret[1]
     return env
 
 
@@ -346,7 +346,8 @@ def dump_db(filename):
 
 @task
 def upload_s3(filename, bucket_name, remote_key):
-    s3 = boto3.client('s3')
+    env = aws_profile(boto=True)
+    s3 = boto3.client('s3', **env)
     s3.upload_file(filename, bucket_name, remote_key)
     url = s3.generate_presigned_url('get_object', Params={
         'Bucket': bucket_name, 'Key': remote_key
@@ -355,14 +356,16 @@ def upload_s3(filename, bucket_name, remote_key):
 
 
 @task
-def deploy_db(app, bucket_name):
+def deploy_db(bucket_name):
     now = datetime.datetime.now()
     filename = 'db-{}.dump'.format(now.strftime('%Y%m%d%H%M'))
     dump_db(filename)
     remote_key = 'imports/{}.dump'.format(now.strftime('%Y%m%d%h%i'))
     filename = 'var/{}'.format(filename)
     s3path = upload_s3(filename, bucket_name, remote_key)
-    local('heroku pg:backups -a {app} restore "{filename}" DATABASE_URL'.format(filename=s3path, app=app))
+    heroku_run('pg:backups -a $app restore "{filename}" DATABASE_URL'.format(
+        filename=s3path,
+    ))
 
 
 @task
