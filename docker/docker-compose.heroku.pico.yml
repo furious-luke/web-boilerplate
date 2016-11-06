@@ -19,7 +19,6 @@ services:
       - SECRET_KEY=dummy
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
-      - DEBUG=true
     links:
       - db
       - redis
@@ -42,7 +41,6 @@ services:
       - SECRET_KEY=dummy
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
-      - DEBUG=true
     links:
       - db
       - redis
