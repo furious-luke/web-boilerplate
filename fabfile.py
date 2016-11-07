@@ -267,12 +267,13 @@ def pdb(prod=False):
 
 
 @task
-def cli(service='web', cmd=None, prod=False):
+def cli(service='web', cmd='bash', prod=False, remote=False):
     """Open a terminal in the container.
     """
-    if cmd is None:
-        cmd = 'bash'
-    run_cfg('$run {}'.format(cmd), not prod, service=service)
+    if remote:
+        remote_run('{}'.format(cmd))
+    else:
+        run_cfg('$run {}'.format(cmd), not prod, service=service)
 
 
 @task(alias='sb')
@@ -377,7 +378,7 @@ def heroku_run(cmd, sudo=False):
 
 
 @task
-def remote(cmd):
+def remote_run(cmd):
     if BASE_CONFIG['platform'] == 'heroku':
         heroku_run('run {} -a $app'.format(cmd))
     elif BASE_CONFIG['platform'] == 'aws':
@@ -386,7 +387,7 @@ def remote(cmd):
 
 @task(alias='rem')
 def remote_manage(cmd):
-    remote('python3 manage.py {}'.format(cmd))
+    remote_run('python3 manage.py {}'.format(cmd))
 
 
 @task
@@ -424,7 +425,13 @@ def create_app(app=None):
 def setup_ssl(domains=None):
     domains = domains or BASE_CONFIG['domains']
     domains = domains.split(',')
-    primary = domains[0]
+    cmd = (
+        '"letsencrypt certonly --email=$email --agree-tos --non-interactive'
+        ' -w /var/lib/letsencrypt -d {}"'
+    ).format(' -d '.join(domains))
+    remote_run(cmd)
+
+    # primary = domains[0]
     # local('docker run --rm -it -p 443:443 -p 80:80 --name certbot '
     #       '-v "/etc/letsencrypt:/etc/letsencrypt" '
     #       '-v "/var/lib/letsencrypt:/var/lib/letsencrypt" '
@@ -433,9 +440,9 @@ def setup_ssl(domains=None):
     #       ''.format(
     #           ' -d '.join(domains)
     #       ))
-    heroku('certs:add --type sni /etc/letsencrypt/live/{primary}-0001/fullchain.pem '
-           '/etc/letsencrypt/live/{primary}-0001/privkey.pem'.format(primary=primary),
-           sudo=True)
+    # heroku('certs:add --type sni /etc/letsencrypt/live/{primary}-0001/fullchain.pem '
+    #        '/etc/letsencrypt/live/{primary}-0001/privkey.pem'.format(primary=primary),
+    #        sudo=True)
 
 
 @task
