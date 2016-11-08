@@ -22,12 +22,17 @@ RUN apt-get -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN echo /root > /etc/container_environment/HOME
 
-WORKDIR /app
 EXPOSE 8000
 
 ARG project
 ENV DJANGO_SETTINGS_MODULE=${project}.settings.development
 ENV PYTHONPATH=/app/${project}:$PYTHONPATH
+
+ENV HOME /root
+ADD docker/build /app/.build
+WORKDIR /app/.build
+RUN /app/.build/build.sh
+WORKDIR /app
 
 ARG run
 ADD boilerplate/docker/${run}.sh /etc/service/app/run
