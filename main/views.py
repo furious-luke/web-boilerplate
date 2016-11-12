@@ -3,6 +3,7 @@ import logging
 
 from django.views.generic import TemplateView
 from django.core.urlresolvers import reverse
+from django.urls.exceptions import NoReverseMatch
 from django.conf import settings
 from jsdata.views import DRFViewMixin
 
@@ -22,6 +23,10 @@ class APIViewMixin(DRFViewMixin):
             'login': reverse('login'),
             'logout': reverse('logout'),
         }
+        try:
+            api['password_change'] = reverse('password_change')
+        except NoReverseMatch:
+            pass
         api.update(kwargs)
         return super(APIViewMixin, self).get_api(**api)
 
