@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Wait for at least one of the Daphne servers to come online.
+echo Waiting for Daphne ...
+while ! timeout 1 bash -c "echo > /dev/tcp/localhost/8000"; do
+    sleep 5
+done
+echo Daphne server responding at 8000.
+
 # Generate our upstream string.
 UPSTREAM=
 for ii in $(seq 0 $(($WEB_PROCESSES - 1))); do

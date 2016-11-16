@@ -3,7 +3,10 @@ from ..base import *
 
 # Application definition
 
-INSTALLED_APPS.append('supertest')
+INSTALLED_APPS.extend([
+    'rest_framework_docs',
+    'supertest'
+])
 
 
 # Password validation

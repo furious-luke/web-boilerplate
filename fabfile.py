@@ -234,10 +234,13 @@ def migrate(prod=False, remote=False):
 
 
 @task(alias='mm')
-def make_migrations():
+def make_migrations(app=None):
     """Check for outdated models.
     """
-    manage('makemigrations')
+    cmd = 'makemigrations'
+    if app:
+        cmd += ' %s' % app
+    manage(cmd)
 
 
 @task
