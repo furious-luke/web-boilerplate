@@ -46,4 +46,8 @@ ADD boilerplate/docker/web.sh /etc/service/app/run
 ADD boilerplate/docker/web.conf /etc/service/app/
 ADD boilerplate/docker/daphne.conf /etc/service/app/app.d/
 
+ENV HOME /root
+ADD docker/build /app/.build
+WORKDIR /app/.build
+RUN /app/.build/build.sh
 WORKDIR /app

@@ -137,6 +137,16 @@ def gen_secret(length=64):
 
 
 @task
+def pull():
+    with warn_only():
+        local('cd boilerplate')
+        local('git checkout develop')
+        local('git pull')
+        local('cd ..')
+        local('git pull')
+
+
+@task
 def build(no_cache=False, prod=False):
     """Build the docker containers.
 
@@ -918,6 +928,7 @@ def deploy():
 
 @task
 def go():
+    pull()
     build()
     local('yarn install')
     reset_db()

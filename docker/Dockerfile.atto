@@ -67,4 +67,8 @@ ADD boilerplate/docker/app.conf /etc/service/app/
 ADD boilerplate/docker/daphne.conf /etc/service/app/app.d/
 ADD boilerplate/docker/channelsworker.conf /etc/service/app/app.d/
 
+ENV HOME /root
+ADD docker/build /app/.build
+WORKDIR /app/.build
+RUN /app/.build/build.sh
 WORKDIR /app

@@ -11,7 +11,7 @@ django-extensions
 djangorestframework
 dj-database-url
 -e git+https://github.com/furious-luke/django-jsdata#egg=django-jsdata
--e git+https://github.com/furious-luke/django-xauth@ba9bf1eb946d7e6815d37789d62595ee2eb5f9b7#egg=django-xauth
+-e git+https://github.com/furious-luke/django-xauth@0eadf4ab99685c5bb5103e5603b4e37e6dddd179#egg=django-xauth
 django-storages
 django-webpack-loader
 

@@ -36,4 +36,8 @@ ADD boilerplate/docker/worker.sh /etc/service/app/run
 ADD boilerplate/docker/worker.conf /etc/service/app/
 ADD boilerplate/docker/channelsworker.conf /etc/service/app/app.d/
 
+ENV HOME /root
+ADD docker/build /app/.build
+WORKDIR /app/.build
+RUN /app/.build/build.sh
 WORKDIR /app
