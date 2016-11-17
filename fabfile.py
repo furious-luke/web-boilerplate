@@ -43,6 +43,7 @@ BASE_CONFIG = {
     'platform': 'heroku',
     'compose': 'docker-compose -f $compose_file -f docker/docker-compose.$layout.yml -p $docker_project',
     'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
+    'rundb': '$compose run --rm db',
     'aws': 'aws --profile $aws_profile --region $aws_region',
     'aws_region': 'ap-southeast-2'
 }
@@ -134,6 +135,13 @@ def aws_profile(profile=None, boto=False):
 
 def gen_secret(length=64):
     return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(length))
+
+
+def get_db_name():
+    run_cfg('$compose up -d db')
+    res = run_cfg('$compose ps | grep db | awk \'{{print $$1}}\' | head -n1',
+                  capture=True)
+    return res.strip()
 
 
 @task
@@ -281,12 +289,15 @@ def pdb(prod=False):
 
 @task
 def cli(service='web', cmd='bash', prod=False, remote=False):
-    """Open a terminal in the container.
+    """ Open a terminal in the container.
     """
     if remote:
         remote_run('{}'.format(cmd))
     else:
-        run_cfg('$run {}'.format(cmd), not prod, service=service)
+        if service == 'db':
+            run_cfg('$rundb {}'.format(cmd), not prod)
+        else:
+            run_cfg('$run {}'.format(cmd), not prod, service=service)
 
 
 @task(alias='sb')
@@ -344,17 +355,37 @@ def kill(prod=False):
 
 
 @task
+def heroku_download_db(filename):
+    dst = os.path.join('var', filename)
+    heroku_run('pg:backups capture -a $app')
+    run_cfg('curl -so %s $$(heroku pg:backups -a $app public-url)' % dst)
+
+
+@task
+def load_db(filename):
+    src = os.path.join('/share', filename)
+    db_name = get_db_name()
+    cmd = (
+        'pg_restore --verbose --clean --no-acl --no-owner'
+        ' -h 0.0.0.0 -U postgres -d postgres {}'.format(src)
+    )
+    fullcmd = 'docker exec {container_name} sh -c "{cmd}"'.format(
+        container_name=db_name, cmd=cmd
+    )
+    with warn_only():
+        local(fullcmd)
+    run_cfg('$compose stop db')
+
+
+@task
 def dump_db(filename):
-    run_cfg('$compose up -d db')
-    res = run_cfg('$compose ps | grep db | awk \'{{print $$1}}\' | head -n1',
-                  capture=True)
-    db_name = res.strip()
+    db_name = get_db_name()
     cmd = ('pg_dump -Fc --no-acl --no-owner -h 0.0.0.0 -U postgres postgres > '
            '/share/{filename}').format(filename=filename)
     fullcmd = 'docker exec {container_name} sh -c "{cmd}"'.format(
         container_name=db_name, cmd=cmd
     )
-    res = local(fullcmd, capture=True)
+    local(fullcmd, capture=True)
     run_cfg('$compose stop db')
 
 
@@ -370,7 +401,7 @@ def upload_s3(filename, bucket_name, remote_key):
 
 
 @task
-def deploy_db(bucket_name):
+def heroku_deploy_db(bucket_name):
     now = datetime.datetime.now()
     filename = 'db-{}.dump'.format(now.strftime('%Y%m%d%H%M'))
     dump_db(filename)
@@ -380,6 +411,22 @@ def deploy_db(bucket_name):
     heroku_run('pg:backups -a $app restore "{filename}" DATABASE_URL'.format(
         filename=s3path,
     ))
+
+
+@task
+def aws_deploy_db():
+    now = datetime.datetime.now()
+    filename = 'db-{}.dump'.format(now.strftime('%Y%m%d%H%M'))
+    dump_db(filename)
+    endpoint = aws_get_db_endpoint()
+    with shell_env(PGPASSFILE='pgpass'):
+        with warn_only():
+            run_cfg(
+                'pg_restore --verbose --clean --no-acl --no-owner'
+                ' -w -h {} -U $project -d $project var/{}'.format(
+                    endpoint['Address'], filename
+                )
+            )
 
 
 @task
@@ -698,6 +745,8 @@ def aws_create_server():
 
 @task
 def aws_init():
+    """ One-off preparation for the project.
+    """
     with warn_only():
         aws_create_key_pair()
         with warn_only():
@@ -799,6 +848,25 @@ def aws_scp(family, src, dst):
 
 
 @task
+def aws_get_db_endpoint():
+    cmd = (
+        '$aws rds describe-db-instances'
+        ' --db-instance-identifier $project'
+    )
+    res = json.loads(run_cfg(cmd, capture=True))
+    endpoint = res['DBInstances'][0]['Endpoint']
+    return endpoint
+
+
+@task
+def aws_get_db_password():
+    res = aws_config('get', 'DATABASE_URL')
+    match = re.search(r'postgres://.*?:(.*?)@.*', res)
+    pw = match.group(1)
+    return pw
+
+
+@task
 def aws_create_db():
 
     # Create the database and wait for it to be ready.
@@ -821,12 +889,7 @@ def aws_create_db():
     run_cfg('$aws rds wait db-instance-available --db-instance-identifier $project')
 
     # Set the database URL in the environment.
-    cmd = (
-        '$aws rds describe-db-instances'
-        ' --db-instance-identifier $project'
-    )
-    res = json.loads(run_cfg(cmd, capture=True))
-    endpoint = res['DBInstances'][0]['Endpoint']
+    endpoint = aws_get_db_endpoint()
     url = 'postgres://$project:$password@$address:$port/$project'
     url = subs(url, dev=False, extra={
         'password': password,
@@ -834,6 +897,15 @@ def aws_create_db():
         'port': str(endpoint['Port'])
     })
     aws_config('set', 'DATABASE_URL', url)
+
+    # Generate/add to the pgpass file.
+    with open('pgpass', 'w') as ff:
+        os.chmod('pgpass', 0o600)
+        ff.write('{}:{}:{}:{}:{}'.format(
+            endpoint['Address'], endpoint['Port'],
+            BASE_CONFIG['project'],
+            BASE_CONFIG['project'], password
+        ))
 
 
 @task
@@ -843,6 +915,8 @@ def aws_public_ip():
                   ' Name=instance-state-name,Values=running',
                   capture=True)
     res = json.loads(res)
+    if not res['Reservations']:
+        print('No EC2 reservations active!')
     for rsrv in res['Reservations']:
         try:
             ip = rsrv['Instances'][0]['PublicIpAddress']
@@ -884,14 +958,20 @@ def aws_config(action=None, key=None, value=None):
     cmd = dotenv.get_cli_string('/root/app.env', action, key, value)
     cmd = cmd.split()
     cmd = cmd[0] + ' -q never ' + ' '.join(cmd[1:])
-    run_cfg(cmd, remote=True)
+    res = run_cfg(cmd, remote=True, capture=(action == 'get'))
+    return res
+
+
+@task
+def aws_ec2_run(cmd):
+    aws_add_env()
+    run_cfg(cmd, dev=False, remote=True)
 
 
 @task
 def aws_run(cmd):
-    aws_add_env()
     cmd = '/usr/bin/app {}'.format(cmd)
-    run_cfg(cmd, dev=False, remote=True)
+    aws_ec2_run(cmd)
 
 
 @task
@@ -920,6 +1000,7 @@ def deploy():
             ctr = '{project}_worker'.format(**cfg)
             heroku_push(ctr, 'worker')
     elif cfg['platform'] == 'aws':
+        aws_docker_login()
         if cfg['layout'] == 'atto':
             ctr = '{project}_web'.format(**cfg)
             aws_push(ctr, '${project}_atto')
