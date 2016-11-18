@@ -9,6 +9,11 @@ INSTALLED_APPS.extend([
 ])
 
 
+# URL configuration
+
+ROOT_URLCONF = PROJECT + '.urls.boilerplate.dev_urls'
+
+
 # Password validation
 
 AUTH_PASSWORD_VALIDATORS = []

@@ -355,10 +355,14 @@ def kill(prod=False):
 
 
 @task
-def heroku_download_db(filename):
+def heroku_download_db(filename=None):
+    if filename is None:
+        now = datetime.datetime.now()
+        filename = 'db-{}.dump'.format(now.strftime('%Y%m%d%H%M'))
     dst = os.path.join('var', filename)
     heroku_run('pg:backups capture -a $app')
     run_cfg('curl -so %s $$(heroku pg:backups -a $app public-url)' % dst)
+    return filename
 
 
 @task
@@ -370,6 +374,24 @@ def load_db(filename):
         ' -h 0.0.0.0 -U postgres -d postgres {}'.format(src)
     )
     fullcmd = 'docker exec {container_name} sh -c "{cmd}"'.format(
+        container_name=db_name, cmd=cmd
+    )
+    with warn_only():
+        local(fullcmd)
+    run_cfg('$compose stop db')
+
+
+@task
+def pull_db():
+    fn = heroku_download_db()
+    load_db(fn)
+
+
+@task
+def psql():
+    db_name = get_db_name()
+    cmd = 'psql -h 0.0.0.0 -U postgres -d postgres'
+    fullcmd = 'docker exec -it {container_name} sh -c "{cmd}"'.format(
         container_name=db_name, cmd=cmd
     )
     with warn_only():
