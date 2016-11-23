@@ -1030,6 +1030,20 @@ def deploy():
 
 
 @task
+def upgrade_js():
+    with open('package.json') as file:
+        data = json.load(file)
+    deps = data['dependencies']
+    dev_deps = data['devDependencies']
+    data['dependencies'] = {}
+    data['devDependencies'] = {}
+    with open('package.json', 'w') as file:
+        json.dump(data, file, indent=2, sort_keys=True)
+    local('yarn add {}'.format(' '.join(deps)))
+    local('yarn add -D {}'.format(' '.join(dev_deps)))
+
+
+@task
 def go():
     pull()
     build()
