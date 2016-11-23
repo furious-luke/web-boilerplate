@@ -19,7 +19,6 @@ function createAction( type, thunk ) {
       payload: args
     };
   };
-  action.type = type;
   return action;
 }
 
@@ -49,7 +48,8 @@ function ajax( url, body, method, dataType ) {
     credentials: 'same-origin',
     body: body 
   });
-  return fetch( request );
+  return fetch( request )
+    .then( r => r.ok ? r.json() : r.json().then( e => Promise.reject( e )));
 }
 
 /**
@@ -69,4 +69,4 @@ function postForm( url, data ) {
   return ajax( url, body, 'post' );
 }
 
-export { createAction, postJson, postForm };
+export { createAction, postJson, postForm, csrfSettings };

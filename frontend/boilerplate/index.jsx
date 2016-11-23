@@ -17,9 +17,7 @@ import 'bootstrap/dist/js/bootstrap.min';
 
 const store = configureStore({
   auth: {
-    auth: {
-      user: jsdata( 'user' )
-    }
+    user: jsdata( 'user' )
   }
 });
 

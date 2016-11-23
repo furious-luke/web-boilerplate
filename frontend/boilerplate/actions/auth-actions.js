@@ -1,30 +1,31 @@
-// import csrfSettings from '../libs/csrf';
-// import $ from 'jquery';
-// import { asyncAction } from 'redux-reusable';
+import { createAction, postForm, csrfSettings } from './utils';
 
-import { createAction, postForm } from './utils';
-
+/**
+ * Login over AJAX. Updates CSRF token.
+ */
 const login = createAction( 'AUTH_LOGIN', (dispatch, getState, data) => {
+  dispatch({ type: 'AUTH_LOGIN_START' });
   return postForm( '/login/', data )
-    .then( response => {
-      if( response.status == 200 ) {
-        const { csrf_token } = response;
-        if( csrf_token )
-          csrfSettings.token = csrf_token;
-        return dispatch({
-          type: 'AUTH_LOGIN_SUCCESS',
-          payload: response.json()
-        });
-      }
-      else {
-        dispatch({
-          type: 'AUTH_LOGIN_ERROR',
-          payload: response.json()
-        });
-      }
+    .then( payload => {
+      const { csrf_token } = payload;
+      if( csrf_token )
+        csrfSettings.token = csrf_token;
+      dispatch({
+        type: 'AUTH_LOGIN',
+        payload
+      });
+    })
+    .catch( payload => {
+      dispatch({
+        type: 'AUTH_LOGIN_ERROR',
+        payload
+      });
     });
 });
 
+/**
+ * Logout over AJAX.
+ */
 const logout = createAction( 'AUTH_LOGOUT', (dispatch, getState) => {
   return postForm( '/logout/' )
     .then( () => {
@@ -35,28 +36,3 @@ const logout = createAction( 'AUTH_LOGOUT', (dispatch, getState) => {
 });
 
 export { login, logout };
-
-/* function login( user, password ) {
-   this.type = 'AUTH_LOGIN'
-   return {
-   type: 'AUTH_LOGIN',
-   payload: {
-   }
-
-   export const authActions = {
-
-   login: asyncAction(
-   'LOGIN',
-   ( dispatch, getState, success, failure, data ) => {
-
-   ),
-
-   logout: asyncAction(
-   'LOGOUT',
-   ( dispatch, getState, success, failure ) => {
-   return $.post({ url: '/logout/', dataType: 'json' })
-   .done( success )
-   .fail( failure );
-   }
-   )
-   }; */

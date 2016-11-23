@@ -36,10 +36,10 @@ class LoginForm extends Component {
   }
 
   render() {
-    const { loading, auth, error } = this.props || {};
+    const { loading, user, errors = {} } = this.props || {};
     const { userFocus, passFocus } = this.state || {};
-    const { status, errors = {} } = error || {};
-    const { user, redirect } = auth || {};
+    /* const { status, errors = {} } = error || {}; */
+    /* const { user, redirect } = auth || {}; */
 
     let buttonStyle, buttonClass, disabled = false;
     if( loading ) {
