@@ -5,7 +5,7 @@ from ..base import *
 
 INSTALLED_APPS.extend([
     'rest_framework_docs',
-    'supertest'
+    # 'supertest'
 ])
 
 

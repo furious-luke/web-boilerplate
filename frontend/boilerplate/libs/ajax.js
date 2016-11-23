@@ -35,5 +35,5 @@ export function createOrUpdate( urlBase, data, success ) {
   }
   $.ajax({ url, method, contentType, data: JSON.stringify( data ), dataType: 'json' })
    .done( response => console.log( response ))
-   .error( response => console.error( response ));
+   .fail( response => console.error( response ));
 }

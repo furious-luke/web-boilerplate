@@ -1,8 +1,8 @@
 import React, { Component } from 'react';
+import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux-reusable';
 
-import { authActions } from '../../actions/auth-actions';
+import * as authActions from '../../actions/auth-actions';
 
 function mapStateToProps( state ) {
   const { auth } = state;
@@ -17,7 +17,7 @@ function mapDispatchToProps( dispatch ) {
   };
 }
 
-export default ( ComposedComponent, LoginView ) => {
+export default (ComposedComponent, LoginView) => {
   return connect( mapStateToProps, mapDispatchToProps )(
     class AuthenticatedComponent extends Component {
       render() {
