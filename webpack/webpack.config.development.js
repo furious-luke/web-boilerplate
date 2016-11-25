@@ -6,9 +6,8 @@ var config = require('./webpack.config.base');
 // Use webpack dev server.
 config.entry = [
     'webpack-dev-server/client?http://localhost:3000',
-    'webpack/hot/only-dev-server',
-    config.entry
-]
+    'webpack/hot/only-dev-server'
+].concat( config.entry );
 
 // override django's STATIC_URL for webpack bundles
 config.output.publicPath = 'http://localhost:3000/var/build/js/';

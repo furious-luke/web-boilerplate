@@ -25,7 +25,7 @@ export function toIndexMap( state, key = 'id' ) {
     return byId;
   }
   else
-    return state;
+    return state || {};
 }
 
 /**
@@ -33,15 +33,22 @@ export function toIndexMap( state, key = 'id' ) {
  */
 export function initCollection( state, key = 'id' ) {
   return {
-    objects: state,
+    objects: state || [],
     map: toIndexMap( state, key )
   };
 }
 
 /**
+ * Get collection.
+ */
+export function getCollection( state, cache, type ) {
+  return state.collections[cache][type];
+}
+
+/**
  * Get an object from a collection.
  */
-export function getObject( coll, id ) {
+export function getCollectionObject( coll, id ) {
   const index = coll.map[id];
   if( index !== undefined )
     return coll.objects[index];
@@ -51,11 +58,24 @@ export function getObject( coll, id ) {
 /**
  * Get object from one of the caches.
  */
-export function getCache( state, cache, type, id ) {
-  const coll = state[cache][type];
+function getCache( state, cache, type, id ) {
+  const coll = getCollection( state, cache, type );
   if( coll !== undefined )
-    return getObject( coll, id );
+    return getCollectionObject( coll, id );
   return undefined;
+}
+
+/**
+ * Merge collection.
+ */
+export function mergeCollections( state, type ) {
+  const server = getCollection( state, 'server', type );
+  const local = getCollection( state, 'local', type );
+  if( local === undefined )
+    return server;
+  if( server === undefined )
+    return local;
+  return updateCollection( server, local.objects );
 }
 
 /**

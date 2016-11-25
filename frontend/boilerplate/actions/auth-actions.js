@@ -1,11 +1,13 @@
 import { createAction, postForm, csrfSettings } from './utils';
 
+import api from './api';
+
 /**
  * Login over AJAX. Updates CSRF token.
  */
 const login = createAction( 'AUTH_LOGIN', (dispatch, getState, data) => {
   dispatch({ type: 'AUTH_LOGIN_START' });
-  return postForm( '/login/', data )
+  return api.login({ data, type: 'form' })
     .then( payload => {
       const { csrf_token } = payload;
       if( csrf_token )
@@ -27,7 +29,7 @@ const login = createAction( 'AUTH_LOGIN', (dispatch, getState, data) => {
  * Logout over AJAX.
  */
 const logout = createAction( 'AUTH_LOGOUT', (dispatch, getState) => {
-  return postForm( '/logout/' )
+  return api.logout({ type: 'form' })
     .then( () => {
       dispatch({
         type: 'AUTH_LOGOUT_SUCCESS'

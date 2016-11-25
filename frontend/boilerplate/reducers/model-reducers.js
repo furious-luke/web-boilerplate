@@ -1,7 +1,7 @@
 import { combineReducers } from 'redux';
 
 import { createReducer } from './utils';
-import * from './model-utils';
+import { initCollection, updateCollection, getServer, getLocal } from './model-utils';
 
 /**
  * Manages the state for models loaded form a server. As an example
@@ -39,8 +39,8 @@ const collectionReducer = createReducer({
   /**
    * Merge loaded models.
    */
-  MODEL_LOAD( state, action ) {
-    const { models } = action.payload;
+  MODEL_LOAD_SUCCESS( state, action ) {
+    const models = action.payload;
     let newState = { ...state };
     let { server } = newState;
 
@@ -53,7 +53,6 @@ const collectionReducer = createReducer({
         server[type] = updateCollection( server[type], data );
     });
 
-    // TODO: How to handle merging into local?
     return newState;
   },
 
@@ -147,8 +146,8 @@ const viewReducer = createReducer({
 });
 
 const modelReducer = combineReducers({
-  collectionReducer,
-  viewReducer
+  collections: collectionReducer,
+  views: viewReducer
 });
 
 export default modelReducer;

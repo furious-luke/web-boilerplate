@@ -16,7 +16,7 @@ function createAction( type, thunk ) {
     // Stadnard action.
     return {
       type,
-      payload: args
+      payload: (args.length == 1) ? args[0] : args
     };
   };
   return action;
@@ -41,7 +41,7 @@ function fetchHeaders( opts ) {
   return headers;
 }
 
-function ajax( url, body, method, dataType ) {
+export function ajax( url, body, method, dataType ) {
   let request = new Request( url, {
     method,
     headers: fetchHeaders({ method, dataType }),

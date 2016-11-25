@@ -2,6 +2,9 @@ import React, { Component } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
+import * as modelActions from '../../actions/model-actions';
+import { mergeCollections, getObject } from '../../reducers/model-utils';
+
 /**
  * Higher-order component to automatically insert models loaded
  * from a server.
@@ -17,18 +20,7 @@ import { connect } from 'react-redux';
  *     }
  *   }
  */
-export default (ComposedComponent, query) => {
-
-  // Process the query into components to be used later.
-  let splitQuery = {};
-  Object.keys( query ).forEach( name => {
-    const info = query[name];
-    const { model } = info;
-    const [ type, id ] = model.split( ':' );
-    splitQuery[name] = { type };
-    if( id !== undefined )
-      splitQuery[name].id = id;
-  });
+export default (ComposedComponent, options) => {
 
   /**
    * Connect the wrapper component to the model state.
@@ -36,20 +28,20 @@ export default (ComposedComponent, query) => {
   return connect(
 
     state => {
-      const { models = {} } = state || {};
+      const { query = {} } = options || {};
+      const { model = {} } = state;
       let data = {};
-      Object.keys( splitQuery ).forEach( name => {
+      Object.keys( query ).forEach( name => {
         const { type, id } = query[name];
-        data[name] = models[type];
-        if( id !== undefined )
-          data[name] = getModel( data[name], id );
+        const coll = mergeCollections( model, type );
+        const value = (id !== undefined) ? getObject( coll, this.props[id] ) : coll;
+        if( value !== undefined )
+          data[name] = value;
       });
       return data;
     },
 
-    dispatch => {
-      
-    }
+    dispatch => bindActionCreators( modelActions, dispatch )
 
   )(
 
@@ -59,7 +51,13 @@ export default (ComposedComponent, query) => {
        * Need to load the requried models.
        */
       componentWillMount() {
-        const { loadModels } = this.props;
+        this.props.loadModelView( options );
+      }
+
+      render() {
+        console.log( this.props );
+        return <h1>HELLO</h1>;
+//        return <ComposedComponent { ...this.props } />;
       }
     }
 
