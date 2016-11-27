@@ -31,10 +31,10 @@ export function toIndexMap( state, key = 'id' ) {
 /**
  * Initialise a model collection.
  */
-export function initCollection( state, key = 'id' ) {
+export function initCollection( data, key = 'id' ) {
   return {
-    objects: state || [],
-    map: toIndexMap( state, key )
+    objects: data || [],
+    map: toIndexMap( data, key )
   };
 }
 
@@ -92,6 +92,21 @@ export function getServer( state, type, id ) {
   return getCache( state, 'server', type, id );
 }
 
+
+/**
+ * Split array of objects.
+ */
+export function splitObjects( objects ) {
+  let data = {};
+  objects.forEach( obj => {
+    const type = obj.type.toLowerCase();
+    if( !(type in data) )
+      data[type] = [];
+    data[type].push( obj );
+  });
+  return data;
+}
+
 /**
  * Update a model collection.
  */
@@ -127,4 +142,49 @@ export function updateCollection( state, data, key = 'id' ) {
     objects: newObjects,
     map: newMap
   };
+}
+
+/**
+ * Resolve a relationship.
+ */
+export function condenseRelationships( state, relation ) {
+  const _relations = (relation instanceof Array) ? relation : [ relation ];
+  let results = [];
+  _relations.forEach( rel => {
+    console.log( state );
+    let res = getLocal( state, rel.type.toLowerCase(), rel.id ) ||
+              getServer( state, rel.type.toLowerCase(), rel.id );
+    if( res !== undefined )
+      res = condense( state, res );
+    else
+      res = rel.id;
+    results.push( res );
+  });
+  if( relation instanceof Array )
+    return results;
+  return results[0];
+}
+
+/**
+ * Collect model relationships.
+ */
+export function condense( state, model ) {
+  const _models = (model instanceof Array) ? model : [ model ];
+  const results = _models.map( mod => {
+    const { relationships = {} } = mod;
+    let relAttrs = {};
+    for( const key of Object.keys( relationships ) )
+      relAttrs[key] = condenseRelationships( state, relationships[key] );
+    return {
+      id: mod.id,
+      type: mod.type.toLowerCase(),
+      attributes: {
+        ...mod.attributes,
+        ...relAttrs
+      }
+    };
+  });
+  if( model instanceof Array )
+    return results;
+  return results[0];
 }

@@ -1,7 +1,7 @@
 import { takeLatest } from 'redux-saga';
 import { call, put } from 'redux-saga/effects';
 
-import api from 'sagas/api';
+import models from 'models';
 
 function* fetchModels( action ) {
   try {
@@ -17,32 +17,48 @@ function* fetchModels( action ) {
 
 function* fetchModelView( action ) {
   try {
-    const { name, query } = action.payload;
+    const { name, query, props } = action.payload;
 
     // Flag to the view that data is loading.
-    yield put({ type: 'MODEL_LOAD_VIEW_REQUEST', payload: { name }});
+    yield put({
+      type: 'MODEL_LOAD_VIEW_REQUEST',
+      payload: { name }
+    });
+
+    // Keep track of all the results of the lookups.
+    let results = {};
 
     // Process each named query.
     for( const name of Object.keys( query ) ) {
-      const { type, id } = query[name];
+      console.debug( `fetchModelView: Looking up ${name}.` );
 
       // Load the data.
-      const data = yield call( api.call['listDocuments'], id );
+      const [ data, included ] = yield call( query[name], props );
+      results[name] = data;
 
       // Then update the store.
-      // TODO: We really don't want to do it this way in the long.
-      //   run. I think we'll want to combine the loads into one.
-      yield put({ type: 'MODEL_LOAD_SUCCESS', payload: data });
-//    });
+      yield put({
+        type: 'MODEL_LOAD_SUCCESS',
+        payload: [ ...((data instanceof Array) ? data : [ data ]), ...included ]
+      });
     }
 
     // Flag this view as ready.
-    yield put({ type: 'MODEL_LOAD_VIEW_SUCCESS', payload: { name }});
+    yield put({
+      type: 'MODEL_LOAD_VIEW_SUCCESS',
+      payload: { name, results }
+    });
   }
   catch( e ) {
-    console.log( e );
-    yield put({ type: 'MODEL_LOAD_FAILURE', errors: e.message });
-    yield put({ type: 'MODEL_LOAD_VIEW_FAILURE', errors: e.message });
+    console.error( e );
+    yield put({
+      type: 'MODEL_LOAD_FAILURE',
+      errors: e.message
+    });
+    yield put({
+      type: 'MODEL_LOAD_VIEW_FAILURE',
+      errors: e.message
+    });
   }
 }
 

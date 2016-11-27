@@ -1,7 +1,8 @@
 import { combineReducers } from 'redux';
 
 import { createReducer } from './utils';
-import { initCollection, updateCollection, getServer, getLocal } from './model-utils';
+import { initCollection, updateCollection, splitObjects,
+         getServer, getLocal } from './model-utils';
 
 /**
  * Manages the state for models loaded form a server. As an example
@@ -40,15 +41,15 @@ const collectionReducer = createReducer({
    * Merge loaded models.
    */
   MODEL_LOAD_SUCCESS( state, action ) {
-    const models = action.payload;
+    const objects = splitObjects( action.payload );
     let newState = { ...state };
     let { server } = newState;
 
     // Iterate over the model types and the new collections.
-    Object.keys( models ).forEach( type => {
-      const data = models[type];
+    Object.keys( objects ).forEach( type => {
+      const data = objects[type];
       if( newState[type] === undefined )
-        server[type] = initCollection( server[type], data );
+        server[type] = initCollection( data );
       else
         server[type] = updateCollection( server[type], data );
     });
@@ -125,9 +126,7 @@ const collectionReducer = createReducer({
  *  }
  *
  */
-const viewReducer = createReducer({
-  views: {}
-}, {
+const viewReducer = createReducer({}, {
 
   /**
    * Indicates a model view is currently loading.
@@ -140,6 +139,23 @@ const viewReducer = createReducer({
       [name]: {
         ...viewState,
         loading: true
+      }
+    };
+  },
+
+  /**
+   * Indicates a model view is currently loading.
+   */
+  MODEL_LOAD_VIEW_SUCCESS( state, action ) {
+    const { name, results } = action.payload;
+    const viewState = state[name] || {};
+    console.debug( `Model: View load success: ${name}`, results );
+    return {
+      ...state,
+      [name]: {
+        ...viewState,
+        ...results,
+        loading: false
       }
     };
   }

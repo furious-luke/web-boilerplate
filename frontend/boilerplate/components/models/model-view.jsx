@@ -8,17 +8,6 @@ import { mergeCollections, getObject } from '../../reducers/model-utils';
 /**
  * Higher-order component to automatically insert models loaded
  * from a server.
- *
- * The query details which model(s) to load, and is of the form:
- *
- *   {
- *     modelName: {
- *       model: modelType,
- *     },
- *     modelName2: {
- *       model: modelType2:id,
- *     }
- *   }
  */
 export default (ComposedComponent, options) => {
 
@@ -28,16 +17,31 @@ export default (ComposedComponent, options) => {
   return connect(
 
     state => {
-      const { query = {} } = options || {};
-      const { model = {} } = state;
+
+      // Put the collections state on the results, with a
+      // couple of helper methods to extract values.
+      const { model: modelState } = state;
+      const { collections } = modelState;
+      let models = {
+        collections
+      };
+      models.get = function( type, id ) {
+        return this[type].objects[this[type].map[id]];
+      }
+      models.get = models.get.bind( models );
+      
+      // Extract the view metadata.
+      const { name } = options || {};
+      const { views } = modelState;
       let data = {};
-      Object.keys( query ).forEach( name => {
-        const { type, id } = query[name];
-        const coll = mergeCollections( model, type );
-        const value = (id !== undefined) ? getObject( coll, this.props[id] ) : coll;
-        if( value !== undefined )
-          data[name] = value;
-      });
+      if( name in views ) {
+        data = {
+          models,
+          ...views[name]
+        };
+      }
+
+      console.debug( 'ModelView: ', data );
       return data;
     },
 
@@ -51,13 +55,12 @@ export default (ComposedComponent, options) => {
        * Need to load the requried models.
        */
       componentWillMount() {
-        this.props.loadModelView( options );
+        console.debug( 'SyncedComponent: Loading model view.' );
+        this.props.loadModelView({ ...options, props: this.props });
       }
 
       render() {
-        console.log( this.props );
-        return <h1>HELLO</h1>;
-//        return <ComposedComponent { ...this.props } />;
+        return <ComposedComponent { ...this.props } />;
       }
     }
 
