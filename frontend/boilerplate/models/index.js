@@ -40,6 +40,39 @@ class Model {
       results[0] = results[0][0];
     return results;
   }
+
+  static calcDiff( state, type, id ) {
+    const serverModel = getServer( state, type, id );
+    const localModel = getLocal( state, type, id );
+
+    // Check for creation.
+    if( serverModel === undefined ) {
+      return {
+        op: 'create',
+        model: localModel
+      };
+    }
+
+    // TODO: How to check for delete?
+
+    // Check for any differences.
+    let changedFields = [];
+    for( const key of Object.keys( localModel.attributes ) ) {
+      const serverField = serverModel.attributes[key];
+      const localField = localModel.attributes[key];
+      if( serverField != localField )
+        changedFields.push( localField );
+    }
+    if( changedFields.length ) {
+      return {
+        op: 'updated',
+        model: localModel,
+        fields: updatedFields
+      };
+    }
+
+    return false;
+  }
 }
 
 class Schema {
@@ -57,8 +90,60 @@ class Schema {
       this.models[key] = model;
 
       // TODO: Check this perhaps?
-      this[key] = model
+      this[key] = model;
     }
+  }
+
+  calcDiffs( state ) {
+    let diffs = [];
+    const { collections: { local }} = state;
+    for( const type of Object.keys( local ) ) {
+      for( const id of Object.keys( local[type] ) ) {
+        const result = Model.calcDiff( state, type, id );
+        if( result )
+          diffs.append( result );
+      }
+    }
+    return diffs;
+  }
+
+  sync() {
+    const diffs = this.calcDiffs();
+    let deferred = [];
+    for( const diff of diffs ) {
+      let def;
+      if( diff.op == 'create' )
+        def = this.create( diff )
+      else if( diff.op == 'remove' )
+        def = this.remove( diff );
+      else
+        def = this.update( diff );
+      deferred.push( def );
+    }
+    return Promise.all( deferred )
+                  .then( () => diffs );
+  }
+
+  create( diff ) {
+    const type = diff.model.type.toLowerCase();
+    return this[type].create( diff.model );
+  }
+
+  remove( diff ) {
+    const type = diff.model.type.toLowerCase();
+    return this[type].remove( diff.model.id );
+  }
+
+  update( diff ) {
+    const type = diff.model.type.toLowerCase();
+    let fields = {};
+    for( const name of diff.fields )
+      fields[name] = diff.model.attributes[name];
+    const data = {
+      id: diff.model.id,
+      attributes: fields
+    };
+    return this[type].update( data );
   }
 }
 

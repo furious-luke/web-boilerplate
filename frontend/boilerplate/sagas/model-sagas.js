@@ -62,6 +62,18 @@ function* fetchModelView( action ) {
   }
 }
 
+function* saveModels( action ) {
+  try {
+    yield put({ type: 'MODEL_SYNC_REQUEST' });
+    const diffs = yield call( schema.sync );
+    yield put({ type: 'MODEL_SYNC_SUCCESS', payload: diffs });
+  }
+  catch( e ) {
+    console.error( e );
+    yield put({ type: 'MODEL_SYNC_FAILURE', errors: e.message });
+  }
+}
+
 export default function* modelSaga() {
   yield takeLatest( 'MODEL_LOAD_VIEW', fetchModelView );
 }

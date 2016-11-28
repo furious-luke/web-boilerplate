@@ -109,6 +109,43 @@ const collectionReducer = createReducer({
         [type]: updateCollection( state.local[type], obj )
       }
     };
+  },
+
+  MODEL_SYNC_REQUEST( state, action ) {
+    return {
+      ...state,
+      sync: true
+    };
+  },
+
+  MODEL_SYNC_SUCCESS( state, action ) {
+    const { diffs } = action.payload;
+    let server = state.collections.server;
+    for( const diff of diffs ) {
+      const type = diff.model.type.toLowerCase();
+      if( diff.op == 'create' ) {
+      }
+      else if( diff.op == 'remove' ) {
+      }
+      else {
+        server = {
+          ...server,
+          [type]: {
+            ...server.type,
+            [diff.model.id]: {
+              ...diff.model
+            }
+        };
+      }
+    }
+    return {
+      ...state,
+      server: {
+        ...server,
+      },
+      local: {},
+      sync: false
+    };
   }
 });
 

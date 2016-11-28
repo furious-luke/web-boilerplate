@@ -147,15 +147,20 @@ export function updateCollection( state, data, key = 'id' ) {
 /**
  * Resolve a relationship.
  */
-export function condenseRelationships( state, relation ) {
+export function condenseRelationships( state, relation, cache = {} ) {
   const _relations = (relation instanceof Array) ? relation : [ relation ];
   let results = [];
   _relations.forEach( rel => {
-    console.log( state );
+
+    // Relationships can be null, meaning they're a foreignkey
+    // and there's no value.
+    if( rel === null )
+      return null;
+
     let res = getLocal( state, rel.type.toLowerCase(), rel.id ) ||
               getServer( state, rel.type.toLowerCase(), rel.id );
     if( res !== undefined )
-      res = condense( state, res );
+      res = condense( state, res, cache );
     else
       res = rel.id;
     results.push( res );
@@ -168,21 +173,32 @@ export function condenseRelationships( state, relation ) {
 /**
  * Collect model relationships.
  */
-export function condense( state, model ) {
+export function condense( state, model, cache = {} ) {
   const _models = (model instanceof Array) ? model : [ model ];
   const results = _models.map( mod => {
-    const { relationships = {} } = mod;
-    let relAttrs = {};
-    for( const key of Object.keys( relationships ) )
-      relAttrs[key] = condenseRelationships( state, relationships[key] );
-    return {
+
+    // Check if the object exists in our cache.
+    const type = mod.type.toLowerCase();
+    if( type in cache && mod.id in cache[type] )
+      return cache[type][mod.id];
+
+    // Build the object and insert into cache.
+    let obj = {
       id: mod.id,
-      type: mod.type.toLowerCase(),
+      type,
       attributes: {
-        ...mod.attributes,
-        ...relAttrs
+        ...mod.attributes
       }
     };
+    if( !(type in cache) )
+      cache[type] = {};
+    cache[type][obj.id] = obj;
+
+    // Build relationships.
+    const { relationships = {} } = mod;
+    for( const key of Object.keys( relationships ) )
+      obj.attributes[key] = condenseRelationships( state, relationships[key], cache );
+    return obj;
   });
   if( model instanceof Array )
     return results;
