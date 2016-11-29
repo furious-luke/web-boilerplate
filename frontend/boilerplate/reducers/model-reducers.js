@@ -1,8 +1,14 @@
 import { combineReducers } from 'redux';
 
+import schema from 'models';
+
 import { createReducer } from './utils';
 import { initCollection, updateCollection, splitObjects,
          getServer, getLocal } from './model-utils';
+
+function ModelError( message ) {
+  this.message = message;
+}
 
 /**
  * Manages the state for models loaded form a server. As an example
@@ -62,51 +68,49 @@ const collectionReducer = createReducer({
    * exist.
    */
   MODEL_SET( state, action ) {
-    const { type, attrs = {} } = action.payload;
-    const { id } = attrs;
-    let obj;
+    const { attributes, id, destination = 'local' } = action.payload;
+    const type = action.payload.type.toLowerCase();
+    const model = schema.getModel( type );
 
-    // Is this a new model?
-    if( id === undefined ) {
-      obj = {
-        ...attrs,
-        id: uuid(),
-      };
+    // Fucking what? No, not this. Anything but this.
+    const shitState = { collections: state };
+
+    // Check if this is an update. If it's an update we need to locate
+    // the existing model and merge attributes.
+    let obj;
+    if( id !== undefined ) {
+      let existing = getLocal( shitState, type, id );
+      if( existing === undefined )
+        existing = getServer( shitState, type, id );
+      if( existing !== undefined )
+        obj = existing;
+      else {
+        console.error( `Unable to find a model of type ${type} with ID ${id}.` );
+        return state;
+      }
     }
     else {
+      obj = {
+        id,
+        type
+      };
+    }
 
-      // Not new. Is it already in our local cache?
-      obj = getLocal( state, type, id );
-      if( obj !== undefined ) {
-        obj = {
-          ...obj,
-          ...attrs
-        };
-      }
-      else {
-
-        // Not new, and not in local cache. Copy from server cache.
-        obj = getServer( state, type, id );
-        if( obj !== undefined ) {
-          obj = {
-            ...obj,
-            ...attrs
-          };
-        }
-        else {
-
-          // Not anywhere, and has an ID. This is an error.
-          throw `unable to find a model of type ${type} with ID ${id}`;
-        }
-      }
+    // Update the model with values from the passed in attributes.
+    const { relationships = {} } = model;
+    for( const attr of Object.keys( attributes ) ) {
+      if( attr in relationships )
+        obj.relationships[attr] = attributes[attr];
+      else
+        obj.attributes[attr] = attributes[attr];
     }
 
     // Now add the model to the state.
     return {
       ...state,
-      local: {
-        ...state.local,
-        [type]: updateCollection( state.local[type], obj )
+      [destination]: {
+        ...state[destination],
+        [type]: updateCollection( state[destination][type], obj )
       }
     };
   },
@@ -135,7 +139,8 @@ const collectionReducer = createReducer({
             [diff.model.id]: {
               ...diff.model
             }
-        };
+          }
+        }
       }
     }
     return {

@@ -1,2 +1,3 @@
 export * from './utils';
-export * from './auth-actions';
+export * as authActions from './auth-actions';
+export * as modelActions from './model-actions';

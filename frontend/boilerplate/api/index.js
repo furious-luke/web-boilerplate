@@ -27,7 +27,7 @@ class Api {
     // Prepare the context to be passed to the request method.
     let ctx = {
       type: 'json',
-      path: path + '/',
+      path: path,
       method: method,
       ...options
     };
@@ -51,57 +51,54 @@ class Api {
       let ep = endpoints[key];
 
       // Check if we're looking at an endpoint.
-      let match = /^(GET|POST|PUT|PATCH|DELETE|CRUD)$/.exec( key );
+      let match = /^(GET|POST|PUT|PATCH|DELETE)$/.exec( key );
       if( match ) {
 
-        // First check if this is shorthand for CRUD.
-        if( match[1] == 'CRUD' ) {
-          if( !(ep instanceof Array) )
-            ep = [ ep, ep + 's' ];
-          const basePath = path + '/' + ep[1];
-          const baseName = capitalize( ep[0] );
-          const baseNamePlural = capitalize( ep[1] );
-          this.crud[ep[0]] = {
-            list: this.makeEndpoint( 'list' + baseNamePlural, basePath, 'GET' ),
-            create: this.makeEndpoint( 'create' + baseName, basePath, 'POST', {
-              handler: (req, id, data, opts = {}) => req({
-                ...opts,
-                args: { id },
-                data
-              })
-            }),
-            detail: this.makeEndpoint( 'get' + baseName, basePath + '/{id}', 'GET', {
-              handler: (req, id, opts = {}) => {
-                return req({
-                  ...opts,
-                  args: { id }
-                });
-              }
-            }),
-            del: this.makeEndpoint( 'delete' + baseName, basePath + '/{id}', 'DELETE', {
-              handler: (req, id, opts = {}) => req({
-                ...opts,
-                args: { id }
-              })
-            })
-          };
-        }
-        else {
+        // The endpoint can be just the name of the function
+        // or it can be an object of details.
+        if( !(ep instanceof Object) )
+          ep = { name: ep };
+        const { name, options = {} } = ep;
 
-          // The endpoint can be just the name of the function
-          // or it can be an object of details.
-          if( !(ep instanceof Object) )
-            ep = { name: ep };
-          const { name, options = {} } = ep;
-
-          // Make the endpoint.
-          this.makeEndpoint( name, path + '/', match[1], options );
-        }
+        // Make the endpoint.
+        this.makeEndpoint( name, path + '/', match[1], options );
       }
 
-      // If not an endpoint, continue down the tree.
+      // If not an endpoint, check for a CRUD shorthand.
+      else if( ep == 'CRUD' ) {
+        ep = [ key, key + 's' ];
+        const basePath = path + '/' + ep[1];
+        const baseName = capitalize( ep[0] );
+        const baseNamePlural = capitalize( ep[1] );
+        this.crud[ep[0]] = {
+          list: this.makeEndpoint( 'list' + baseNamePlural, basePath, 'GET' ),
+          create: this.makeEndpoint( 'create' + baseName, basePath, 'POST', {
+            handler: (req, id, data, opts = {}) => req({
+              ...opts,
+              args: { id },
+              data
+            })
+          }),
+          detail: this.makeEndpoint( 'get' + baseName, basePath + '/{id}', 'GET', {
+            handler: (req, id, opts = {}) => {
+              return req({
+                ...opts,
+                args: { id }
+              });
+            }
+          }),
+          del: this.makeEndpoint( 'delete' + baseName, basePath + '/{id}', 'DELETE', {
+            handler: (req, id, opts = {}) => req({
+              ...opts,
+              args: { id }
+            })
+          })
+        };
+      }
+
+      // If not an endpoint or CRUD, continue down the tree.
       else
-        this.merge( endpoints[key], path + '/' + key )
+        this.merge( ep, path + '/' + key )
     }
   }
 
@@ -127,7 +124,8 @@ class Api {
     let finalPath = supplant( path, args );
 
     // Add on the included models.
-    finalPath += '?include=' + include.join( ',' );
+    if( include && include.length )
+      finalPath += '?include=' + include.join( ',' );
 
     console.debug( `API: ${finalPath}` );
     return ajax( finalPath, body, method, type );

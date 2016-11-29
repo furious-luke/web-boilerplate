@@ -42,7 +42,9 @@ export function initCollection( data, key = 'id' ) {
  * Get collection.
  */
 export function getCollection( state, cache, type ) {
-  return state.collections[cache][type];
+  const coll = state.collections[cache];
+  if( coll )
+    return coll[type];
 }
 
 /**
@@ -121,7 +123,7 @@ export function updateCollection( state, data, key = 'id' ) {
   let newObjects = [ ...objects ], newMap = { ...map };
 
   // Add each object.
-  results.forEach( newObj => {
+  data.forEach( newObj => {
 
     // Check the ID.
     const id = newObj[key];

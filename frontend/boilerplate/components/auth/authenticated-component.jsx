@@ -2,21 +2,23 @@ import React, { Component } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
-import * as authActions from '../../actions/auth-actions';
-
-function mapStateToProps( state ) {
-  const { auth = {} } = state;
-  return { auth };
-}
-
-function mapDispatchToProps( dispatch ) {
-  return {
-    authActions: bindActionCreators( authActions, dispatch ),
-  };
-}
+import { authActions } from '../../actions';
 
 export default (ComposedComponent, LoginView) => {
-  return connect( mapStateToProps, mapDispatchToProps )(
+
+  return connect(
+
+    state => {
+      const { auth = {} } = state;
+      return { auth };
+    },
+
+    dispatch => Object({
+      authActions: bindActionCreators( authActions, dispatch )
+    })
+
+  )(
+
     class AuthenticatedComponent extends Component {
       render() {
         const { auth = {}, authActions, ...props } = this.props;

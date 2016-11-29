@@ -94,6 +94,10 @@ class Schema {
     }
   }
 
+  getModel( type ) {
+    return this.models[type];
+  }
+
   calcDiffs( state ) {
     let diffs = [];
     const { collections: { local }} = state;

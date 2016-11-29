@@ -1,4 +1,4 @@
-import { createAction, postForm, csrfSettings } from './utils';
+import { createAction } from './utils';
 
 export const setModel = createAction( 'MODEL_SET' );
 export const loadModels = createAction( 'MODEL_LOAD' );
