@@ -3,7 +3,7 @@ import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
 import * as modelActions from '../../actions/model-actions';
-import { mergeCollections, condense } from '../../reducers/model-utils';
+import { mergeCollections, collect, initCollection } from '../../reducers/model-utils';
 
 /**
  * Higher-order component to automatically insert models loaded
@@ -33,20 +33,24 @@ export default (ComposedComponent, options) => {
       // Extract the view metadata.
       const { name, query } = options || {};
       const { views } = modelState;
-      let data = {
-        models
-      };
+      let data = {};
       if( name in views ) {
         data = {
           ...data,
           ...views[name]
         };
 
-        // Condense the requested models.
+        // Collect all the related models of the requested models.
+        let collections = {};
         for( const key of Object.keys( query ) ) {
           if( key in data )
-            data[key] = condense( modelState, data[key] );
+            data[key] = collect( modelState, data[key], collections );
         }
+
+        // Use the collected data to construct collections.
+        data.collections = {};
+        for( const type of Object.keys( collections ) )
+          data.collections[type] = initCollection( collections[type] );
       }
 
       console.debug( 'ModelView: ', data );

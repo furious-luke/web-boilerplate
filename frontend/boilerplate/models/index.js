@@ -75,6 +75,21 @@ class Model {
   }
 }
 
+class DB {
+
+  constructor( data ) {
+    this.data;
+  }
+
+  get( type, id ) {
+    return this.data[type][id];
+  }
+
+  set( type, id ) {
+     
+  }
+}
+
 class Schema {
 
   constructor() {

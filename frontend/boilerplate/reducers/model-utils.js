@@ -112,15 +112,23 @@ export function splitObjects( objects ) {
 /**
  * Update a model collection.
  */
-export function updateCollection( state, data, key = 'id' ) {
-  const { objects = [], map = {} } = state || {};
+export function updateCollection( collection, data, inPlace=false, key='id' ) {
+  const { objects = [], map = {} } = collection || {};
 
   // Ensure we have an array of objects to add.
   if( !Array.isArray( data ) )
     data = [ data ];
 
   // Create duplicates of the current state.
-  let newObjects = [ ...objects ], newMap = { ...map };
+  let newObjects, newMap;
+  if( inPlace ) {
+    newObjects = objects;
+    newMap = map;
+  }
+  else {
+    newObjects = [ ...objects ];
+    newMap = { ...map };
+  }
 
   // Add each object.
   data.forEach( newObj => {
@@ -149,7 +157,7 @@ export function updateCollection( state, data, key = 'id' ) {
 /**
  * Resolve a relationship.
  */
-export function condenseRelationships( state, relation, cache = {} ) {
+export function collectRelationships( state, relation, cache = {} ) {
   const _relations = (relation instanceof Array) ? relation : [ relation ];
   let results = [];
   _relations.forEach( rel => {
@@ -162,7 +170,7 @@ export function condenseRelationships( state, relation, cache = {} ) {
     let res = getLocal( state, rel.type.toLowerCase(), rel.id ) ||
               getServer( state, rel.type.toLowerCase(), rel.id );
     if( res !== undefined )
-      res = condense( state, res, cache );
+      res = collect( state, res, cache );
     else
       res = rel.id;
     results.push( res );
@@ -175,9 +183,9 @@ export function condenseRelationships( state, relation, cache = {} ) {
 /**
  * Collect model relationships.
  */
-export function condense( state, model, cache = {} ) {
-  const _models = (model instanceof Array) ? model : [ model ];
-  const results = _models.map( mod => {
+export function collect( state, model, cache = {} ) {
+  const _models = (model instanceof Array) ? model : [ model ]; 
+  let results = _models.map( mod => {
 
     // Check if the object exists in our cache.
     const type = mod.type.toLowerCase();
@@ -199,7 +207,7 @@ export function condense( state, model, cache = {} ) {
     // Build relationships.
     const { relationships = {} } = mod;
     for( const key of Object.keys( relationships ) )
-      obj.attributes[key] = condenseRelationships( state, relationships[key], cache );
+      obj.attributes[key] = collectRelationships( state, relationships[key], cache );
     return obj;
   });
   if( model instanceof Array )
