@@ -1,49 +1,63 @@
+require( 'babel-polyfill' );
+
+import { Component } from 'react';
+import { bindActionCreators } from 'redux';
+import uuid from 'uuid';
+
+import * as modelActions from '../actions/model-actions';
+import { getLocal, getServer, initCollection, updateCollection,
+         splitJsonApiResponse } from '../reducers/model-utils';
+
 class Model {
 
   constructor( type ) {
     this.type = type;
   }
 
+  /**
+   * Merge endpoint operations.
+   */
   merge( options ) {
     for( const key of [ 'list', 'create', 'detail' ] ) {
       if( key in options ) {
+
+        // Add the call to the model itself.
         this[key] = (...args) => options[key]( ...args ).then( data => {
           console.debug( `Model: ${key}: `, data );
-          const res = this.fromJsonApi( data );
-          console.debug( `Model: ${key}: `, res );
-          return res;
+          /* const res = this.fromJsonApi( data );
+             console.debug( `Model: ${key}: `, res ); */
+          return data;
         });
-        this[key].type = this.type;
+
+        /* this[key].type = this.type; */
       }
     }
   }
 
-  modelFromJsonApi( object ) {
-    const { relationships = {}, ...rest } = object;
-    let relations = {};
-    for( const rel of Object.keys( relationships ) )
-      relations[rel] = relationships[rel].data;
-    return {
-      ...rest,
-      relationships: relations
-    };
-  }
+  /* modelFromJsonApi( object ) {
+     const { relationships = {}, ...rest } = object;
+     let relations = {};
+     for( const rel of Object.keys( relationships ) )
+     relations[rel] = relationships[rel].data;
+     return {
+     ...rest,
+     relationships: relations
+     };
+     }
 
-  fromJsonApi( response ) {
-    const { data, included = [] } = response || {};
-    const _data = (data instanceof Array) ? data : [ data ];
-    let results = [
-      _data.map( o => this.modelFromJsonApi( o ) ),
-      included.map( o => this.modelFromJsonApi( o ) ),
-    ];
-    if( !(data instanceof Array) )
-      results[0] = results[0][0];
-    return results;
-  }
+     fromJsonApi( response ) {
+     const { data, included = [] } = response || {};
+     const _data = (data instanceof Array) ? data : [ data ];
+     let results = [
+     _data.map( o => this.modelFromJsonApi( o ) ),
+     included.map( o => this.modelFromJsonApi( o ) ),
+     ];
+     if( !(data instanceof Array) )
+     results[0] = results[0][0];
+     return results;
+     } */
 
-  static calcDiff( state, type, id ) {
-    const serverModel = getServer( state, type, id );
-    const localModel = getLocal( state, type, id );
+  diff( localModel, serverModel ) {
 
     // Check for creation.
     if( serverModel === undefined ) {
@@ -61,13 +75,13 @@ class Model {
       const serverField = serverModel.attributes[key];
       const localField = localModel.attributes[key];
       if( serverField != localField )
-        changedFields.push( localField );
+        changedFields.push( key );
     }
     if( changedFields.length ) {
       return {
         op: 'updated',
         model: localModel,
-        fields: updatedFields
+        fields: changedFields
       };
     }
 
@@ -75,18 +89,172 @@ class Model {
   }
 }
 
-class DB {
+export class DB {
 
-  constructor( data ) {
-    this.data;
+  /**
+   * Construct a DB from either a database data object, or a React
+   * component. If using a React component, the data is assumed to
+   * reside under `props.models.db`.
+   */
+  constructor( data, useState=false ) {
+    if( data instanceof Component ) {
+      const src = useState ? data.state : data.props;
+      const { model = {} } = src;
+      this.data = model.db;
+      this.useState = useState;
+      this.component = data;
+    }
+    else
+      this.data = data || { server: {}, local: {} };
   }
 
+  bindDispatch( dispatch ) {
+    this.dispatch = dispatch;
+    this.actions = bindActionCreators( modelActions, dispatch );
+  }
+
+  loadJsonApi( response ) {
+    const objects = splitJsonApiResponse( response );
+    let server = {
+      ...this.data.server || {}
+    };
+
+    // Iterate over the model types and the new collections.
+    Object.keys( objects ).forEach( type => {
+      const data = objects[type];
+      if( server[type] === undefined )
+        server[type] = initCollection( data );
+      else
+        server[type] = updateCollection( server[type], data );
+    });
+
+    this.data = {
+      ...this.data,
+      server
+    };
+  }
+
+  /**
+   * Get a model from a type and an ID.
+   */
   get( type, id ) {
-    return this.data[type][id];
+    if( type.constructor === Object ) {
+      id = type.id;
+      type = type.type;
+    }
+    let mod = getLocal( this.data, type, id );
+    if( mod === undefined )
+      mod = getServer( this.data, type, id );
+    return mod;
   }
 
-  set( type, id ) {
-     
+  /**
+   * Get a model from a type and an ID from the server collections.
+   */
+  getServer( type, id ) {
+    if( type.constructor === Object ) {
+      id = type.id;
+      type = type.type;
+    }
+    return getServer( this.data, type, id );
+  }
+
+  /**
+   *
+   */
+  set( modelData ) {
+    if( this.component ) {
+      if( !this.useState )
+        this.actions.setModel( modelData );
+      else {
+        this.component.setState({
+          model: {
+            ...this.component.state.model,
+            db: this._setModelData( modelData  )
+          }
+        });
+      }
+    }
+    else
+      this.data = this._setModelData( modelData );
+  }
+
+  /**
+   *
+   */
+  *calcOrderedDiffs() {
+    const { local } = this.data;
+    for( const type of Object.keys( local ) ) {
+      for( const obj of local[type].objects ) {
+        for( const diff of this._calcOrderedDiffs( type, obj.id ) )
+          yield diff;
+      }
+    }
+  }
+
+  *_calcOrderedDiffs( type, id ) {
+    const obj = this.get( type, id );
+    const { relationships = {} } = obj;
+    const model = schema.models[type];
+    const diff = model.diff( obj, this.getServer( type, id ) );
+    if( diff )
+      yield diff;
+    for( const relType of Object.keys( relationships ) ) {
+      for( const rel of relationships[relType].data ) {
+        for( const relDiff of this._calcOrderedDiffs( relType, rel.id ) )
+          yield relDiff;
+      }
+    }
+  }
+
+  /**
+   *
+   */
+  _setModelData( modelData, destination='local' ) {
+    const { id, type } = modelData;
+
+    // Check if this is an update. If it's an update we need to locate
+    // the existing model and merge attributes.
+    let obj;
+    if( id !== undefined ) {
+      let existing = getLocal( this.data, type, id );
+      if( existing === undefined )
+        existing = getServer( this.data, type, id );
+      if( existing !== undefined )
+        obj = existing;
+      else
+        throw ModelError( `Unable to find a model of type ${type} with ID ${id}.` );
+    }
+    else {
+      obj = {
+        id: uuid.v4(),
+        type,
+        attributes: {},
+        relationships: {}
+      };
+    }
+
+    // Update the object with new attributes.
+    obj = {
+      ...obj,
+      attributes: {
+        ...obj.attributes,
+        ...(modelData.attributes || {})
+      },
+      relationships: {
+        ...obj.relationships,
+        ...(modelData.relationships || {})
+      }
+    };
+      
+    // Now add the model to the state.
+    return {
+      ...this.data,
+      [destination]: {
+        ...this.data[destination],
+        [type]: updateCollection( this.data[destination][type], obj )
+      }
+    };
   }
 }
 

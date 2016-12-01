@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 
 import * as modelActions from '../../actions/model-actions';
 import { mergeCollections, collect, initCollection } from '../../reducers/model-utils';
+import { DB } from 'models';
 
 /**
  * Higher-order component to automatically insert models loaded
@@ -17,7 +18,13 @@ export default (ComposedComponent, options) => {
   return connect(
 
     state => {
+      const { name } = options || {};
+      const { model = {} } = state;
+      const { views = {} } = model;
+      const data = views[name] || {};
+      const db = new DB( model.db );
 
+/*
       // Put the collections state on the results, with a
       // couple of helper methods to extract values.
       const { model: modelState } = state;
@@ -52,9 +59,13 @@ export default (ComposedComponent, options) => {
         for( const type of Object.keys( collections ) )
           data.collections[type] = initCollection( collections[type] );
       }
+*/
 
       console.debug( 'ModelView: ', data );
-      return data;
+      return {
+        ...data,
+        db
+      };
     },
 
     dispatch => bindActionCreators( modelActions, dispatch )

@@ -42,7 +42,7 @@ export function initCollection( data, key = 'id' ) {
  * Get collection.
  */
 export function getCollection( state, cache, type ) {
-  const coll = state.collections[cache];
+  const coll = state[cache];
   if( coll )
     return coll[type];
 }
@@ -96,16 +96,26 @@ export function getServer( state, type, id ) {
 
 
 /**
- * Split array of objects.
+ * Split array of JSON API objects.
  */
-export function splitObjects( objects ) {
-  let data = {};
+export function splitObjects( objects=[], data={} ) {
+  if( !(objects instanceof Array) )
+      objects = [ objects ];
   objects.forEach( obj => {
-    const type = obj.type.toLowerCase();
+    const type = obj.type;
     if( !(type in data) )
       data[type] = [];
     data[type].push( obj );
   });
+  return data;
+}
+
+/**
+ * Split JSON API response.
+ */
+export function splitJsonApiResponse( response ) {
+  let data = splitObjects( response.data );
+  data = splitObjects( response.included, data );
   return data;
 }
 
@@ -167,8 +177,8 @@ export function collectRelationships( state, relation, cache = {} ) {
     if( rel === null )
       return null;
 
-    let res = getLocal( state, rel.type.toLowerCase(), rel.id ) ||
-              getServer( state, rel.type.toLowerCase(), rel.id );
+    let res = getLocal( state, rel.type, rel.id ) ||
+              getServer( state, rel.type, rel.id );
     if( res !== undefined )
       res = collect( state, res, cache );
     else
@@ -188,7 +198,7 @@ export function collect( state, model, cache = {} ) {
   let results = _models.map( mod => {
 
     // Check if the object exists in our cache.
-    const type = mod.type.toLowerCase();
+    const type = mod.type;
     if( type in cache && mod.id in cache[type] )
       return cache[type][mod.id];
 

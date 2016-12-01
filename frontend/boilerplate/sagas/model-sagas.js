@@ -3,69 +3,54 @@ import { call, put } from 'redux-saga/effects';
 
 import models from 'models';
 
-function* fetchModels( action ) {
-  try {
-    const { model, id } = action.payload;
-//    const data = yield call( Api.fetchModels, model, id );
-    data = {};
-    yield put({ type: 'MODEL_LOAD_SUCCESS', data });
-  }
-  catch( e ) {
-    yield put({ type: 'MODEL_LOAD_FAILURE', errors: e.message });
-  }
-}
+/* function* fetchModels( action ) {
+   try {
+   const { model, id } = action.payload;
+   //    const data = yield call( Api.fetchModels, model, id );
+   data = {};
+   yield put({ type: 'MODEL_LOAD_SUCCESS', data });
+   }
+   catch( e ) {
+   yield put({ type: 'MODEL_LOAD_FAILURE', errors: e.message });
+   }
+   } */
 
 function* fetchModelView( action ) {
   try {
     const { name, query, props } = action.payload;
 
     // Flag to the view that data is loading.
-    yield put({
-      type: 'MODEL_LOAD_VIEW_REQUEST',
-      payload: { name }
-    });
+    yield put({ type: 'MODEL_LOAD_VIEW_REQUEST', payload: { name } });
 
     // Keep track of all the results of the lookups.
     let results = {};
 
-    // Process each named query.
+    // Process each named query. We want to load the data, cache it
+    // in results, then update the store immediately.
     for( const name of Object.keys( query ) ) {
       console.debug( `fetchModelView: Looking up ${name}.` );
-
-      // Load the data.
-      const [ data, included ] = yield call( query[name], props );
+      const data = yield call( query[name], props );
       results[name] = data;
-
-      // Then update the store.
-      yield put({
-        type: 'MODEL_LOAD_SUCCESS',
-        payload: [ ...((data instanceof Array) ? data : [ data ]), ...included ]
-      });
+      yield put({ type: 'MODEL_LOAD_SUCCESS', payload: data });
     }
 
-    // Flag this view as ready.
-    yield put({
-      type: 'MODEL_LOAD_VIEW_SUCCESS',
-      payload: { name, results }
-    });
+    // Flag this view as ready. We also want to supply a list of IDs
+    // of each type of model loaded.
+    yield put({ type: 'MODEL_LOAD_VIEW_SUCCESS', payload: { name, results } });
   }
   catch( e ) {
     console.error( e );
-    yield put({
-      type: 'MODEL_LOAD_FAILURE',
-      errors: e.message
-    });
-    yield put({
-      type: 'MODEL_LOAD_VIEW_FAILURE',
-      errors: e.message
+    yield put({ type: 'MODEL_LOAD_VIEW_FAILURE', errors: e.message
     });
   }
 }
 
-function* saveModels( action ) {
+function* sync( action ) {
   try {
     yield put({ type: 'MODEL_SYNC_REQUEST' });
-    const diffs = yield call( schema.sync );
+    const db = new DB( yield select().model.db );
+    for( const diff of db.calcOrderedDiffs() )
+      yield call( db.syncDiff, diff );
     yield put({ type: 'MODEL_SYNC_SUCCESS', payload: diffs });
   }
   catch( e ) {
