@@ -49,6 +49,25 @@ const dbReducer = createReducer({
     };
   },
 
+  MODEL_COMMIT_DIFF( state, action ) {
+    const type = diff.model.type.toLowerCase();
+    if( diff.op == 'create' ) {
+    }
+    else if( diff.op == 'remove' ) {
+    }
+    else {
+      server = {
+        ...server,
+        [type]: {
+          ...server.type,
+          [diff.model.id]: {
+            ...diff.model
+          }
+        }
+      }
+    }
+  },
+
   MODEL_SYNC_SUCCESS( state, action ) {
     const { diffs } = action.payload;
     let server = state.collections.server;

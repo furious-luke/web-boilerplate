@@ -182,29 +182,47 @@ export class DB {
   /**
    *
    */
+  commitDiff( diff ) {
+    const model = schema.getModel( type );
+    const op = (diff.op == 'update') : 'detail' : diff.op;
+    return model[op]( diff.model );
+  }
+
+  /**
+   *
+   */
   *calcOrderedDiffs() {
     const { local } = this.data;
+    let done = {};
     for( const type of Object.keys( local ) ) {
       for( const obj of local[type].objects ) {
-        for( const diff of this._calcOrderedDiffs( type, obj.id ) )
+        for( const diff of this._calcOrderedDiffs( type, obj.id, done ) )
           yield diff;
       }
     }
   }
 
-  *_calcOrderedDiffs( type, id ) {
+  *_calcOrderedDiffs( type, id, done={} ) {
+    if( type in done && id in done[type] )
+      return;
+    if( !(type in done) )
+      done[type] = {};
+    done[type][id] = true;
     const obj = this.get( type, id );
     const { relationships = {} } = obj;
-    const model = schema.models[type];
-    const diff = model.diff( obj, this.getServer( type, id ) );
-    if( diff )
-      yield diff;
+    const model = schema.getModel( type );
     for( const relType of Object.keys( relationships ) ) {
-      for( const rel of relationships[relType].data ) {
-        for( const relDiff of this._calcOrderedDiffs( relType, rel.id ) )
+      let relData = relationships[relType].data || [];
+      if( !(relData instanceof Array) )
+        relData = [ relData ];
+      for( const rel of relData ) {
+        for( const relDiff of this._calcOrderedDiffs( relType, rel.id, done ) )
           yield relDiff;
       }
     }
+    const diff = model.diff( obj, this.getServer( type, id ) );
+    if( diff )
+      yield diff;
   }
 
   /**
@@ -278,6 +296,8 @@ class Schema {
   }
 
   getModel( type ) {
+    if( !(type in this.models) )
+      console.error( `No model registered as "${type}".` );
     return this.models[type];
   }
 

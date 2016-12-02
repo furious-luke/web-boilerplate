@@ -49,9 +49,11 @@ function* sync( action ) {
   try {
     yield put({ type: 'MODEL_SYNC_REQUEST' });
     const db = new DB( yield select().model.db );
-    for( const diff of db.calcOrderedDiffs() )
-      yield call( db.syncDiff, diff );
-    yield put({ type: 'MODEL_SYNC_SUCCESS', payload: diffs });
+    for( const diff of db.calcOrderedDiffs() ) {
+      const data = yield call( db.commitDiff, diff );
+      yield put({ type: 'MODEL_COMMIT_DIFF', payload: { diff, data  }});
+    }
+    yield put({ type: 'MODEL_SYNC_SUCCESS' });
   }
   catch( e ) {
     console.error( e );
