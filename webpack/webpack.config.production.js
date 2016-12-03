@@ -21,6 +21,9 @@ config.plugins = [
     // keeps hashes consistent between compilations
     new webpack.optimize.OccurenceOrderPlugin(),
 
+    // identify common code
+    new webpack.optimize.DedupePlugin(),
+
     // minifies your code
     new webpack.optimize.UglifyJsPlugin({
         compressor: {
