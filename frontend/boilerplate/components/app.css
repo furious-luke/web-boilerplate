@@ -1,0 +1,4 @@
+:global html, :global body, :global #main-mount, :global #dev-wrapper {
+    height: 100%;
+    margin: 0;
+}

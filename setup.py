@@ -34,7 +34,7 @@ def copy_file(src, dst, data=None):
         elif os.path.isdir(src):
             shutil.copytree(src, dst)
         else:
-            shutil.copyfile(src, dst)
+            shutil.copy(src, dst)
     else:
         print('skipping {}'.format(src))
 
@@ -78,9 +78,9 @@ def update_settings(args):
     shutil.move(os.path.join(path, '..', 'settings.py'), path)
     os.symlink('../../../boilerplate/settings/boilerplate', os.path.join(path, 'boilerplate'))
     copy_file('boilerplate/settings/project.py', os.path.join(path, 'project.py'), data)
-    shutil.copyfile('boilerplate/settings/base.py', os.path.join(path, 'base.py'))
-    shutil.copyfile('boilerplate/settings/development.py', os.path.join(path, 'development.py'))
-    shutil.copyfile('boilerplate/settings/production.py', os.path.join(path, 'production.py'))
+    shutil.copy('boilerplate/settings/base.py', os.path.join(path, 'base.py'))
+    shutil.copy('boilerplate/settings/development.py', os.path.join(path, 'development.py'))
+    shutil.copy('boilerplate/settings/production.py', os.path.join(path, 'production.py'))
     with open(os.path.join(path, '__init__.py'), 'w') as file:
         pass
 
@@ -92,10 +92,10 @@ def update_urls(args):
         return
     os.mkdir(path)
     os.symlink('../../../boilerplate/urls/boilerplate', os.path.join(path, 'boilerplate'))
-    shutil.copyfile('boilerplate/urls/urls.py', os.path.join(path, 'urls.py'))
-    shutil.copyfile('boilerplate/urls/router.py', os.path.join(path, 'router.py'))
-    shutil.copyfile('boilerplate/urls/channels.py', os.path.join(path, 'channels.py'))
-    shutil.copyfile('boilerplate/urls/__init__.py', os.path.join(path, '__init__.py'))
+    shutil.copy('boilerplate/urls/urls.py', os.path.join(path, 'urls.py'))
+    shutil.copy('boilerplate/urls/router.py', os.path.join(path, 'router.py'))
+    shutil.copy('boilerplate/urls/channels.py', os.path.join(path, 'channels.py'))
+    shutil.copy('boilerplate/urls/__init__.py', os.path.join(path, '__init__.py'))
     os.remove(os.path.join(path, '..', 'urls.py'))
 
 

@@ -1,5 +1,6 @@
-import $ from '../libs/jquery.wrapper';
-import 'jquery.cookie';
+// import $ from '../libs/jquery.wrapper';
+// import 'jquery.cookie';
+import Cookies from 'js-cookie';
 
 /**
  * Helper function for creating acions. Accepts an optional "thunk"
@@ -26,7 +27,8 @@ function createAction( type, thunk ) {
  * Global storage for current csrf settings.
  */
 var csrfSettings = {
-  token: $.cookie( 'csrftoken' ) || 'NO-CSRF-TOKEN'
+  token: Cookies.get( 'token' ) || 'NO-CSRF-TOKEN'
+  // token: $.cookie( 'csrftoken' ) || 'NO-CSRF-TOKEN'
 };
 
 function fetchHeaders( opts ) {

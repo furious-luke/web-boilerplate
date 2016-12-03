@@ -1,2 +1,2 @@
-import * as ajax from './ajax';
-export { ajax };
+// import * as ajax from './ajax';
+// export { ajax };

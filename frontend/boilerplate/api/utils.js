@@ -1,5 +1,6 @@
-import $ from '../libs/jquery.wrapper';
-import 'jquery.cookie';
+// import $ from '../libs/jquery.wrapper';
+// import 'jquery.cookie';
+import Cookies from 'js-cookie';
 
 export function supplant( text, o ) {
   return text.replace(
@@ -42,7 +43,8 @@ function createAction( type, thunk ) {
  * Global storage for current csrf settings.
  */
 var csrfSettings = {
-  token: $.cookie( 'csrftoken' ) || 'NO-CSRF-TOKEN'
+  token: Cookies.get( 'csrftoken' ) || 'NO-CSRF-TOKEN'
+//  token: $.cookie( 'csrftoken' ) || 'NO-CSRF-TOKEN'
 };
 
 function fetchHeaders( opts ) {
