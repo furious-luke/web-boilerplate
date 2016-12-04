@@ -247,7 +247,8 @@ export class DB {
 
     // Return the ID of the object. This is useful when we create
     // an object and don't know what ID was used.
-    return this.data.chain.diffs.slice( -1 )[0].object.id;
+    const { diffs, current } = this.data.chain;
+    return diffs[current - 1][0].object.id;
   }
 
   _set( object ) {
@@ -261,6 +262,7 @@ export class DB {
     const undo = model.diff( newObj, oldObj );
     if( !undo )
       return this.data;
+    const redo = model.diff( oldObj, newObj );
 
     // Now add the model to the state, and update the chain.
     const { chain = {}, head = {} } = this.data;
@@ -273,7 +275,7 @@ export class DB {
       chain: {
         diffs: [
           ...diffs,
-          undo
+          [undo, redo]
         ],
         current: current + 1
       }
@@ -289,6 +291,7 @@ export class DB {
     const undo = model.diff( undefined, oldObj );
     if( !undo )
       return this.data;
+    const redo = model.diff( oldObj, undefined );
 
     // Now add the model to the state, and update the chain.
     const { chain = {}, head = {} } = this.data;
@@ -301,7 +304,7 @@ export class DB {
       chain: {
         diffs: [
           ...diffs,
-          undo
+          [undo, redo]
         ],
         current: current + 1
       }
@@ -326,23 +329,16 @@ export class DB {
       return;
 
     // Calculate the head state with the undo diff applied.
-    const undo = diffs[current - 1];
+    const [ undo, redo ] = diffs[current - 1];
     const { type, id } = undo.object;
     const model = schema.getModel( type );
     const undoneHead = model.applyDiff( undo, head );
-
-    // Calculate the redo diff.
-    const redo = model.diff( this.get( type, id, undoneHead ), this.get( type, id ) );
 
     // Update the diff chain and head.
     this.data = {
       head: undoneHead,
       chain: {
-        diffs: [
-          ...chain.diffs.slice( 0, current - 1 ),
-          redo,
-          ...chain.diffs.slice( current )
-        ],
+        ...chain,
         current: current - 1
       }
     };
@@ -367,23 +363,16 @@ export class DB {
       return;
 
     // Calculate the head state with the redo diff applied.
-    const redo = diffs[current];
+    const [ undo, redo ] = diffs[current];
     const { type, id } = redo.object;
     const model = schema.getModel( type );
     const redoneHead = model.applyDiff( redo, head );
-
-    // Calculate the redo diff.
-    const undo = model.diff( this.get( type, id, redoneHead ), this.get( type, id ) );
 
     // Update the diff chain and head.
     this.data = {
       head: redoneHead,
       chain: {
-        diffs: [
-          ...diffs.slice( 0, current ),
-          undo,
-          ...diffs.slice( current + 1 )
-        ],
+        ...chain,
         current: current + 1
       }
     };
@@ -398,42 +387,72 @@ export class DB {
     return model[op]( diff.model );
   }
 
-  /**
-   *
-   */
-  *calcOrderedDiffs() {
-    const { local } = this.data;
-    let done = {};
-    for( const type of Object.keys( local ) ) {
-      for( const obj of local[type].objects ) {
-        for( const diff of this._calcOrderedDiffs( type, obj.id, done ) )
-          yield diff;
+  translateId( type, id, newId ) {
+    const { head } = this.data;
+    let newHead = {};
+    for( const _type in Object.keys( head ) ) {
+      if( id in head[_type] ) {
+        newHead[_type] = {
+          ...head[_type],
+          [newId]: {
+            ...head[_type][id],
+            id: newId
+          }
+        }
+        delete newHead[_type][id]
+      }
+      else
+        newHead[_type] = head[_type];
+    }
+    Object.keys( newHead ).map( _type => {
+      Object.keys( newHead[_type] ).map( _id => {
+        const obj = newHead[_type][_id];
+        obj.relationships.map( relType => {
+          if( relType == type ) {
+            let relData = obj.relationships[relType]
+          }
+          else
+            return obj.relationships[relType];
       }
     }
   }
 
-  *_calcOrderedDiffs( type, id, done={} ) {
-    if( type in done && id in done[type] )
-      return;
-    if( !(type in done) )
-      done[type] = {};
-    done[type][id] = true;
-    const obj = this.get( type, id );
-    const { relationships = {} } = obj;
-    const model = schema.getModel( type );
-    for( const relType of Object.keys( relationships ) ) {
-      let relData = relationships[relType].data || [];
-      if( !(relData instanceof Array) )
-        relData = [ relData ];
-      for( const rel of relData ) {
-        for( const relDiff of this._calcOrderedDiffs( relType, rel.id, done ) )
-          yield relDiff;
-      }
-    }
-    const diff = model.diff( obj, this.getServer( type, id ) );
-    if( diff )
-      yield diff;
-  }
+  /**
+   *
+   */
+  /* *calcOrderedDiffs() {
+     const { local } = this.data;
+     let done = {};
+     for( const type of Object.keys( local ) ) {
+     for( const obj of local[type].objects ) {
+     for( const diff of this._calcOrderedDiffs( type, obj.id, done ) )
+     yield diff;
+     }
+     }
+     } */
+
+  /* *_calcOrderedDiffs( type, id, done={} ) {
+     if( type in done && id in done[type] )
+     return;
+     if( !(type in done) )
+     done[type] = {};
+     done[type][id] = true;
+     const obj = this.get( type, id );
+     const { relationships = {} } = obj;
+     const model = schema.getModel( type );
+     for( const relType of Object.keys( relationships ) ) {
+     let relData = relationships[relType].data || [];
+     if( !(relData instanceof Array) )
+     relData = [ relData ];
+     for( const rel of relData ) {
+     for( const relDiff of this._calcOrderedDiffs( relType, rel.id, done ) )
+     yield relDiff;
+     }
+     }
+     const diff = model.diff( obj, this.getServer( type, id ) );
+     if( diff )
+     yield diff;
+     } */
 }
 
 class Schema {
