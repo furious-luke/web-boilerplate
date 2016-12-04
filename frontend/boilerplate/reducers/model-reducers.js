@@ -4,11 +4,7 @@ import schema, { DB } from 'models';
 
 import { createReducer } from './utils';
 import { initCollection, updateCollection, splitObjects,
-         getServer, getLocal } from './model-utils';
-
-function ModelError( message ) {
-  this.message = message;
-}
+         ModelError, getServer, getLocal } from './model-utils';
 
 /**
  * Manages the state for models loaded form a server. As an example

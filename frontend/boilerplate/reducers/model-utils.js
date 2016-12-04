@@ -67,6 +67,15 @@ function getCache( state, cache, type, id ) {
   return undefined;
 }
 
+export function getObject( state, type, id ) {
+  if( !state )
+    return;
+  const coll = state[type];
+  if( !coll )
+    return
+  return getCollectionObject( coll, id );
+}
+
 /**
  * Merge collection.
  */
@@ -93,7 +102,6 @@ export function getLocal( state, type, id ) {
 export function getServer( state, type, id ) {
   return getCache( state, 'server', type, id );
 }
-
 
 /**
  * Split array of JSON API objects.
@@ -123,9 +131,13 @@ export function splitJsonApiResponse( response ) {
  * Update a model collection.
  */
 export function updateCollection( collection, data, inPlace=false, key='id' ) {
-  const { objects = [], map = {} } = collection || {};
+
+  // If we get given an empty collection, just initialise.
+  if( collection === undefined )
+    return initCollection( data, key );
 
   // Ensure we have an array of objects to add.
+  const { objects = [], map = {} } = collection;
   if( !Array.isArray( data ) )
     data = [ data ];
 
@@ -161,6 +173,27 @@ export function updateCollection( collection, data, inPlace=false, key='id' ) {
   return {
     objects: newObjects,
     map: newMap
+  };
+}
+
+/**
+ * Remove one or more objects from a collection.
+ */
+export function removeFromCollection( collection, ids ) {
+  const _ids = (ids instanceof Array) ? ids : [ids];
+  let objects = [
+    ...collection.objects
+  ];
+  let map = {
+    ...collection.map
+  };
+  for( const id of _ids ) {
+    delete objects[map[id]];
+    delete map[id];
+  }
+  return {
+    objects,
+    map
   };
 }
 
@@ -223,4 +256,8 @@ export function collect( state, model, cache = {} ) {
   if( model instanceof Array )
     return results;
   return results[0];
+}
+
+export function ModelError( message ) {
+  this.message = message;
 }

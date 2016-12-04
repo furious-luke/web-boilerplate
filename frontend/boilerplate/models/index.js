@@ -5,8 +5,8 @@ import { bindActionCreators } from 'redux';
 import uuid from 'uuid';
 
 import * as modelActions from '../actions/model-actions';
-import { getLocal, getServer, initCollection, updateCollection,
-         splitJsonApiResponse } from '../reducers/model-utils';
+import { getObject, initCollection, updateCollection, removeFromCollection,
+         ModelError, splitJsonApiResponse } from '../reducers/model-utils';
 
 class Model {
 
@@ -34,6 +34,26 @@ class Model {
     }
   }
 
+  update( fromObject, toObject ) {
+    let _from = fromObject || {};
+    let _to = toObject || {};
+    let obj = {
+      ..._to,
+      ..._from,
+      attributes: {
+        ...(_to.attributes || {}),
+        ...(_from.attributes || {})
+      },
+      relationships: {
+        ...(_to.relationships || {}),
+        ...(_from.relationships || {})
+      }
+    };
+    if( obj.id === undefined )
+      obj.id = uuid.v4();
+    return obj;
+  }
+
   /* modelFromJsonApi( object ) {
      const { relationships = {}, ...rest } = object;
      let relations = {};
@@ -57,35 +77,85 @@ class Model {
      return results;
      } */
 
-  diff( localModel, serverModel ) {
+  diff( fromObject, toObject ) {
 
     // Check for creation.
-    if( serverModel === undefined ) {
+    if( fromObject === undefined ) {
+      if( toObject === undefined )
+        return;
       return {
         op: 'create',
-        model: localModel
+        object: toObject
       };
     }
 
-    // TODO: How to check for delete?
+    // Check for remove.
+    if( toObject === undefined ) {
+      return {
+        op: 'remove',
+        object: {
+          id: fromObject.id,
+          type: fromObject.type
+        }
+      };
+    }
 
     // Check for any differences.
     let changedFields = [];
-    for( const key of Object.keys( localModel.attributes ) ) {
-      const serverField = serverModel.attributes[key];
-      const localField = localModel.attributes[key];
-      if( serverField != localField )
+    let fields = new Set( Object.keys( toObject.attributes ).concat( Object.keys( fromObject.attributes )));
+    for( const key of fields ) {
+      const fromField = fromObject.attributes[key];
+      const toField = toObject.attributes[key];
+      if( fromField != toField )
         changedFields.push( key );
     }
     if( changedFields.length ) {
       return {
-        op: 'updated',
-        model: localModel,
+        op: 'update',
+        object: toObject,
         fields: changedFields
       };
     }
 
     return false;
+  }
+
+  applyDiff( diff, head ) {
+    const { type, id } = diff.object;
+    let obj;
+    if( diff.op == 'update' ) {
+      obj = getObject( head, type, id );
+      if( !obj )
+        throw new ModelError( `Cannot update model ${type} with ID ${id}; does not exist.` );
+    }
+    else if( diff.op == 'create' ) {
+      if( getObject( head, type, id ) !== undefined )
+        throw new ModelError( `Cannot create model ${type} with ID ${id}; already exists.` );
+      obj = {
+        type,
+        attributes: {},
+        relationships: {}
+      };
+    }
+    else if( diff.op == 'remove' ) {
+      if( getObject( head, type, id ) === undefined )
+        throw new ModelError( `Cannot remove model ${type} with ID ${id}; does not exist.` );
+      return {
+        ...head,
+        [type]: removeFromCollection( head[type], id )
+      };
+    }
+
+    // Update the object with new attributes.
+    const model = schema.getModel( type );
+    obj = model.update( diff.object, obj );
+
+    // Add the object to the head state.
+    let coll = head[type];
+    return {
+      ...head,
+      [type]: updateCollection( coll, obj )
+    };
   }
 }
 
@@ -105,7 +175,7 @@ export class DB {
       this.component = data;
     }
     else
-      this.data = data || { server: {}, local: {} };
+      this.data = data || { head: {}, chain: {} };
   }
 
   bindDispatch( dispatch ) {
@@ -113,70 +183,210 @@ export class DB {
     this.actions = bindActionCreators( modelActions, dispatch );
   }
 
+  /**
+   * Load models from JSON API format.
+   */
   loadJsonApi( response ) {
     const objects = splitJsonApiResponse( response );
-    let server = {
-      ...this.data.server || {}
-    };
 
-    // Iterate over the model types and the new collections.
+    // Cache the latest redo position. We don't want to revert the
+    // state of the DB to far.
+    const { chain = {} } = this.data;
+    const { current } = chain;
+
+    // Walk back the diff chain to get the current data into
+    // server configuration.
+    this.undoAll();
+
+    // Now update the head data state to reflect the new server
+    // information.
+    const { head = {} } = this.data;
+    let newHead = {};
     Object.keys( objects ).forEach( type => {
       const data = objects[type];
-      if( server[type] === undefined )
-        server[type] = initCollection( data );
-      else
-        server[type] = updateCollection( server[type], data );
+      newHead[type] = updateCollection( head[type], data );
     });
 
+    // Replay all the diffs to bring us back to the correct position.
     this.data = {
       ...this.data,
-      server
+      head: newHead
     };
+    this.redoAll( current );
   }
 
   /**
    * Get a model from a type and an ID.
    */
-  get( type, id ) {
+  get( type, id, head ) {
     if( type.constructor === Object ) {
       id = type.id;
       type = type.type;
     }
-    let mod = getLocal( this.data, type, id );
-    if( mod === undefined )
-      mod = getServer( this.data, type, id );
-    return mod;
-  }
-
-  /**
-   * Get a model from a type and an ID from the server collections.
-   */
-  getServer( type, id ) {
-    if( type.constructor === Object ) {
-      id = type.id;
-      type = type.type;
-    }
-    return getServer( this.data, type, id );
+    return getObject( head || this.data.head, type, id );
   }
 
   /**
    *
    */
-  set( modelData ) {
+  set( object ) {
     if( this.component ) {
       if( !this.useState )
-        this.actions.setModel( modelData );
+        this.actions.setModel( object );
       else {
         this.component.setState({
           model: {
             ...this.component.state.model,
-            db: this._setModelData( modelData  )
+            db: this._set( object  )
           }
         });
       }
     }
     else
-      this.data = this._setModelData( modelData );
+      this.data = this._set( object );
+
+    // Return the ID of the object. This is useful when we create
+    // an object and don't know what ID was used.
+    return this.data.chain.diffs.slice( -1 )[0].object.id;
+  }
+
+  _set( object ) {
+    const { id, type } = object;
+
+    // Create the diff. Note that we are interested in what
+    // needs to be done to *undo* the requested changes.
+    const model = schema.getModel( type );
+    const oldObj = this.get( type, id );
+    const newObj = model.update( object, oldObj );
+    const undo = model.diff( newObj, oldObj );
+    if( !undo )
+      return this.data;
+
+    // Now add the model to the state, and update the chain.
+    const { chain = {}, head = {} } = this.data;
+    const { diffs = [], current = 0 } = chain;
+    return {
+      head: {
+        ...head,
+        [type]: updateCollection( head[type], newObj )
+      },
+      chain: {
+        diffs: [
+          ...diffs,
+          undo
+        ],
+        current: current + 1
+      }
+    };
+  }
+
+  remove( type, id ) {
+
+    // Create the diff. Note that we are interested in what
+    // needs to be done to *undo* the requested changes.
+    const model = schema.getModel( type );
+    const oldObj = this.get( type, id );
+    const undo = model.diff( undefined, oldObj );
+    if( !undo )
+      return this.data;
+
+    // Now add the model to the state, and update the chain.
+    const { chain = {}, head = {} } = this.data;
+    const { diffs = [], current = 0 } = chain;
+    this.data = {
+      head: {
+        ...head,
+        [type]: removeFromCollection( head[type], id )
+      },
+      chain: {
+        diffs: [
+          ...diffs,
+          undo
+        ],
+        current: current + 1
+      }
+    };
+  }
+
+  undoAll() {
+    const { chain = {} } = this.data;
+    let { current } = chain;
+    while( current ) {
+      this.undo();
+      current -= 1;
+    }
+  }
+
+  undo() {
+
+    // Don't try and operate on a non-existant diff.
+    const { chain = {}, head = {} } = this.data;
+    const { current, diffs = [] } = chain;
+    if( !current )
+      return;
+
+    // Calculate the head state with the undo diff applied.
+    const undo = diffs[current - 1];
+    const { type, id } = undo.object;
+    const model = schema.getModel( type );
+    const undoneHead = model.applyDiff( undo, head );
+
+    // Calculate the redo diff.
+    const redo = model.diff( this.get( type, id, undoneHead ), this.get( type, id ) );
+
+    // Update the diff chain and head.
+    this.data = {
+      head: undoneHead,
+      chain: {
+        diffs: [
+          ...chain.diffs.slice( 0, current - 1 ),
+          redo,
+          ...chain.diffs.slice( current )
+        ],
+        current: current - 1
+      }
+    };
+  }
+
+  redoAll() {
+    const { chain = {} } = this.data;
+    const { diffs = [] } = chain;
+    let { current } = chain;
+    while( current < diffs.length ) {
+      this.redo();
+      current += 1;
+    }
+  }
+
+  redo() {
+
+    // Don't try and operate on a non-existant diff.
+    const { chain = {}, head = {} } = this.data;
+    const { current = 0, diffs = [] } = chain;
+    if( current == diffs.length )
+      return;
+
+    // Calculate the head state with the redo diff applied.
+    const redo = diffs[current];
+    const { type, id } = redo.object;
+    const model = schema.getModel( type );
+    const redoneHead = model.applyDiff( redo, head );
+
+    // Calculate the redo diff.
+    const undo = model.diff( this.get( type, id, redoneHead ), this.get( type, id ) );
+
+    // Update the diff chain and head.
+    this.data = {
+      head: redoneHead,
+      chain: {
+        diffs: [
+          ...diffs.slice( 0, current ),
+          undo,
+          ...diffs.slice( current + 1 )
+        ],
+        current: current + 1
+      }
+    };
   }
 
   /**
@@ -184,7 +394,7 @@ export class DB {
    */
   commitDiff( diff ) {
     const model = schema.getModel( type );
-    const op = (diff.op == 'update') : 'detail' : diff.op;
+    const op = (diff.op == 'update') ? 'detail' : diff.op;
     return model[op]( diff.model );
   }
 
@@ -223,56 +433,6 @@ export class DB {
     const diff = model.diff( obj, this.getServer( type, id ) );
     if( diff )
       yield diff;
-  }
-
-  /**
-   *
-   */
-  _setModelData( modelData, destination='local' ) {
-    const { id, type } = modelData;
-
-    // Check if this is an update. If it's an update we need to locate
-    // the existing model and merge attributes.
-    let obj;
-    if( id !== undefined ) {
-      let existing = getLocal( this.data, type, id );
-      if( existing === undefined )
-        existing = getServer( this.data, type, id );
-      if( existing !== undefined )
-        obj = existing;
-      else
-        throw ModelError( `Unable to find a model of type ${type} with ID ${id}.` );
-    }
-    else {
-      obj = {
-        id: uuid.v4(),
-        type,
-        attributes: {},
-        relationships: {}
-      };
-    }
-
-    // Update the object with new attributes.
-    obj = {
-      ...obj,
-      attributes: {
-        ...obj.attributes,
-        ...(modelData.attributes || {})
-      },
-      relationships: {
-        ...obj.relationships,
-        ...(modelData.relationships || {})
-      }
-    };
-      
-    // Now add the model to the state.
-    return {
-      ...this.data,
-      [destination]: {
-        ...this.data[destination],
-        [type]: updateCollection( this.data[destination][type], obj )
-      }
-    };
   }
 }
 
