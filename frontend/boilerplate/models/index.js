@@ -382,39 +382,119 @@ export class DB {
    *
    */
   commitDiff( diff ) {
-    const model = schema.getModel( type );
-    const op = (diff.op == 'update') ? 'detail' : diff.op;
-    return model[op]( diff.model );
+
+    // If no diff was given, use the oldest one available.
+    // If no such diff is available then return.
+    let _diff;
+    if( !diff ) {
+      const { chain = {} } = this.data;
+      const { diffs, server = 0, current } = chain;
+      if( !diffs || (server !== undefined && server == current) )
+        return;
+      _diff = diffs[0][1];
+    }
+    else
+      _diff = diff;
+
+    const model = schema.getModel( _diff.object.type );
+    const op = (_diff.op == 'update') ? 'detail' : _diff.op;
+    return model[op]( _diff.model );
   }
 
-  translateId( type, id, newId ) {
+  postCommitDiff( diff, response ) {
+    if( diff.op == 'create' ) {
+      const { data } = response;
+      const id = (data instanceof Array) ? data[0].id : data.id;
+      this.aliasId( _diff.object.type, _diff.object.id, id );
+    }
+  }
+
+  popDiff() {
+    const { chain = {} } = this.data;
+    const { diffs, server = 0 } = chain;
+    this.data = {
+      ...this.data,
+      chain: {
+        ...chain,
+        server: server + 1
+      }
+    };
+  }
+
+  aliasId( type, id, newId ) {
+
+    // Build the new collection for the type in question.
     const { head } = this.data;
-    let newHead = {};
-    for( const _type in Object.keys( head ) ) {
-      if( id in head[_type] ) {
-        newHead[_type] = {
-          ...head[_type],
-          [newId]: {
-            ...head[_type][id],
+    const coll = head[type];
+    if( !coll )
+      return;
+    const { objects = [], map = {}, alias = {} } = coll;
+    if( !(id in map) )
+      return coll;
+    const index = map[id];
+    let newMap = {
+      ...map,
+      [newId]: index
+    };
+    delete newMap[id];
+    let newColl = {
+      objects: [
+        ...objects.slice( 0, index ),
+        {
+          ...objects[index],
+          id: newId
+        },
+        ...objects.slice( index + 1 )
+      ],
+      map: newMap,
+      alias: {
+        ...alias,
+        [id]: newId
+      }
+    }
+
+    // Also need to replace the ID in any diffs.
+    const { chain = {} } = this.data;
+    const { diffs = [] } = chain;
+    let newDiffs = diffs.map( ([undo, redo]) => {
+      let newUndo;
+      if( undo.object.id == id ) {
+        newUndo = {
+          ...undo,
+          object: {
+            ...undo.object,
             id: newId
           }
         }
-        delete newHead[_type][id]
       }
       else
-        newHead[_type] = head[_type];
-    }
-    Object.keys( newHead ).map( _type => {
-      Object.keys( newHead[_type] ).map( _id => {
-        const obj = newHead[_type][_id];
-        obj.relationships.map( relType => {
-          if( relType == type ) {
-            let relData = obj.relationships[relType]
+        newUndo = undo;
+      let newRedo;
+      if( redo.object.id == id ) {
+        newRedo = {
+          ...redo,
+          object: {
+            ...redo.object,
+            id: newId
           }
-          else
-            return obj.relationships[relType];
+        }
       }
-    }
+      else
+        newRedo = redo;
+      return [ newUndo, newRedo ];
+    });
+
+    this.data = {
+      ...this.data,
+      head: {
+        ...head,
+        [type]: newColl
+      },
+      chain: {
+        ...chain,
+        diffs: newDiffs
+      }
+    };
   }
 
   /**

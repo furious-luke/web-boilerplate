@@ -51,10 +51,10 @@ export function getCollection( state, cache, type ) {
  * Get an object from a collection.
  */
 export function getCollectionObject( coll, id ) {
-  const index = coll.map[id];
+  const { alias = {}, map, objects } = coll;
+  const index = (id in alias) ? map[alias[id]] : map[id];
   if( index !== undefined )
-    return coll.objects[index];
-  return undefined;
+    return objects[index];
 }
 
 /**

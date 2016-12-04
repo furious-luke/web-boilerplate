@@ -3,18 +3,6 @@ import { call, put } from 'redux-saga/effects';
 
 import models from 'models';
 
-/* function* fetchModels( action ) {
-   try {
-   const { model, id } = action.payload;
-   //    const data = yield call( Api.fetchModels, model, id );
-   data = {};
-   yield put({ type: 'MODEL_LOAD_SUCCESS', data });
-   }
-   catch( e ) {
-   yield put({ type: 'MODEL_LOAD_FAILURE', errors: e.message });
-   }
-   } */
-
 function* fetchModelView( action ) {
   try {
     const { name, query, props } = action.payload;
@@ -49,9 +37,11 @@ function* sync( action ) {
   try {
     yield put({ type: 'MODEL_SYNC_REQUEST' });
     const db = new DB( yield select().model.db );
-    for( const diff of db.calcOrderedDiffs() ) {
-      const data = yield call( db.commitDiff, diff );
-      yield put({ type: 'MODEL_COMMIT_DIFF', payload: { diff, data  }});
+    while( true ) {
+      const response = yield call( db.commitDiff );
+      if( response === undefined )
+        break;
+      yield put({ type: 'MODEL_COMMIT_DIFF', payload: { diff, response  }});
     }
     yield put({ type: 'MODEL_SYNC_SUCCESS' });
   }
@@ -61,6 +51,16 @@ function* sync( action ) {
   }
 }
 
+function* watchSync() {
+  while( true ) {
+    const action = yield take( 'MODEL_SYNC' );
+    yield call( sync, action );
+  }
+}
+
 export default function* modelSaga() {
-  yield takeLatest( 'MODEL_LOAD_VIEW', fetchModelView );
+  yield [
+    takeLatest( 'MODEL_LOAD_VIEW', fetchModelView ),
+    watchSync()
+  ];
 }

@@ -46,52 +46,26 @@ const dbReducer = createReducer({
   },
 
   MODEL_COMMIT_DIFF( state, action ) {
-    const type = diff.model.type.toLowerCase();
-    if( diff.op == 'create' ) {
-    }
-    else if( diff.op == 'remove' ) {
-    }
-    else {
-      server = {
-        ...server,
-        [type]: {
-          ...server.type,
-          [diff.model.id]: {
-            ...diff.model
-          }
-        }
-      }
-    }
+    const { diff, response } = action.payload;
+    let db = new DB( state.db );
+    db.postCommitDiff( diff, response );
+    db.popDiff();
+    return {
+      ...state,
+      db: db.data
+    };
   },
 
   MODEL_SYNC_SUCCESS( state, action ) {
-    const { diffs } = action.payload;
-    let server = state.collections.server;
-    for( const diff of diffs ) {
-      const type = diff.model.type.toLowerCase();
-      if( diff.op == 'create' ) {
-      }
-      else if( diff.op == 'remove' ) {
-      }
-      else {
-        server = {
-          ...server,
-          [type]: {
-            ...server.type,
-            [diff.model.id]: {
-              ...diff.model
-            }
-          }
-        }
-      }
-    }
+    const { sync, syncErrors, ...rem } = state;
+    return rem;
+  },
+
+  MODEL_SYNC_FAILURE( state, action ) {
+    const { sync, ...rem } = state;
     return {
-      ...state,
-      server: {
-        ...server,
-      },
-      local: {},
-      sync: false
+      ...rem,
+      syncErrors: action.payload.errors
     };
   }
 });
