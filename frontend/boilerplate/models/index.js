@@ -218,7 +218,7 @@ export class DB {
   /**
    * Get a model from a type and an ID.
    */
-  get( type, id, head ) {
+  get( type, id ) {
     if( type.constructor === Object ) {
       id = type.id;
       type = type.type;

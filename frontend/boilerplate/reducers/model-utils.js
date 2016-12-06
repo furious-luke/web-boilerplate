@@ -1,114 +1,83 @@
+import { List, Map, Set } from 'immutable';
 import uuid from 'uuid';
 
-/**
- * Take an array of objects and return a mapping from a uniquely
- * identified field to the objects.
- */
-export function toObjectMap( state, key = 'id' ) {
-  if( Array.isArray( state ) ) {
-    let byId = {};
-    state.forEach( item => byId[item[key]] = item );
-    return byId;
-  }
-  else
-    return state;
+export function isObject( x ) {
+  return Object.keys(obj).length === 0 && obj.constructor === Object;
+}
+
+export function isEmpty( x ) {
+  return x === undefined || x === null;
+}
+
+function ModelDoesNotExist() {
+}
+
+function ModelTooManyResults() {
 }
 
 /**
- * Similar to `toObjectMap`, but instead of mapping to the objects,
- * map to the indices of the objects in the original array.
+ *
  */
-export function toIndexMap( state, key = 'id' ) {
-  if( Array.isArray( state ) ) {
-    let byId = {};
-    state.forEach( ( item, ii ) => byId[item[key]] = ii );
-    return byId;
-  }
-  else
-    return state || {};
+export function toIndexMap( state, key='id' ) {
+  if( isEmpty( state ) )
+    return [];
+  let index = new Map();
+  state.forEach( (item, ii) => {
+    const val = item[key];
+    if( !index.has( val ) )
+      index = index.set( val, new Set([ ii ]) );
+    else
+      index = index.updateIn([ val ], x => x.add( ii ));
+  });
+  return index;
 }
 
 /**
  * Initialise a model collection.
  */
-export function initCollection( data, key = 'id' ) {
+export function initCollection( data, indices='id' ) {
+  if( !(indices instanceof Array) )
+    indices = [ indices ];
+  let inds = new Map();
+  for( const key of indices )
+    inds = inds.set( key, toIndexMap( data, key ) );
   return {
-    objects: data || [],
-    map: toIndexMap( data, key )
+    objects: new List( data || [] ),
+    indices: inds
   };
 }
 
-/**
- * Get collection.
- */
-export function getCollection( state, cache, type ) {
-  const coll = state[cache];
-  if( coll )
-    return coll[type];
+function reduceIndices( results, indices, key, value ) {
+  if( results === undefined )
+    return indices[key];
+  const other = indices[key][value];
+  if( other === undefined )
+    return new Set();
+  return results.filter( x => other.has( x ));
 }
 
-/**
- * Get an object from a collection.
- */
-export function getCollectionObject( coll, id ) {
-  const { alias = {}, map, objects } = coll;
-  const index = (id in alias) ? map[alias[id]] : map[id];
-  if( index !== undefined )
-    return objects[index];
-}
-
-/**
- * Get object from one of the caches.
- */
-function getCache( state, cache, type, id ) {
-  const coll = getCollection( state, cache, type );
-  if( coll !== undefined )
-    return getCollectionObject( coll, id );
-  return undefined;
-}
-
-export function getObject( state, type, id ) {
+export function filterObjects( state, type, idOrQuery ) {
   if( !state )
     return;
   const coll = state[type];
   if( !coll )
     return
-  return getCollectionObject( coll, id );
+  const { alias = {}, objects, indices } = coll;
+  if( !isObject( idOrQuery ) )
+    idOrQuery = { id: idOrQuery };
+  let results;
+  for( const key in idOrQuery )
+    results = reduceIndices( results, indices, key, idOrQuery[key] );
+  return results;
 }
 
-export function newObject( type ) {
-  return {
-    type,
-    attributes: {},
-    relationships: {}
-  };
-}
-
-/**
- * Merge collection.
- */
-export function mergeCollections( state, type ) {
-  const server = getCollection( state, 'server', type );
-  const local = getCollection( state, 'local', type );
-  if( local === undefined )
-    return server;
-  if( server === undefined )
-    return local;
-  return updateCollection( server, local.objects );
-}
-
-/**
- * Get object from local cache.
- */
-export function getLocal( state, type, id ) {
-  return getCache( state, 'local', type, id );
-}
-
-/**
- * Get object from server cache.
- */
-export function getServer( state, type, id ) {
-  return getCache( state, 'server', type, id );
+export function getObject( state, type, idOrQuery ) {
+  const obj = filterObjects( state, type, idOrQuery );
+  if( obj.length > 1 )
+    throw new ModelTooManyResults();
+  if( obj.length == 0 )
+    throw new ModelDoesNotExist();
+  return obj;
 }
 
 /**
@@ -136,16 +105,18 @@ export function splitJsonApiResponse( response ) {
 }
 
 /**
- * Update a model collection.
+ * Update a model collection. Takes care to update the indices
+ * appropriately. Note that this only adds new models and updates
+ * existing ones.
  */
-export function updateCollection( collection, data, inPlace=false, key='id' ) {
+export function updateCollection( collection, data, inPlace=false, _indices='id' ) {
 
   // If we get given an empty collection, just initialise.
   if( collection === undefined )
-    return initCollection( data, key );
+    return initCollection( data, _indices );
 
   // Ensure we have an array of objects to add.
-  const { objects = [], map = {} } = collection;
+  const { objects = [], indices = {} } = collection;
   if( !Array.isArray( data ) )
     data = [ data ];
 
