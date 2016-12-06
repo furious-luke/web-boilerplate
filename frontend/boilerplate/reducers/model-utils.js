@@ -76,6 +76,14 @@ export function getObject( state, type, id ) {
   return getCollectionObject( coll, id );
 }
 
+export function newObject( type ) {
+  return {
+    type,
+    attributes: {},
+    relationships: {}
+  };
+}
+
 /**
  * Merge collection.
  */
