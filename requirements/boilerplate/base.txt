@@ -16,11 +16,12 @@ dj-database-url
 django-storages
 django-webpack-loader
 
--e git+https://github.com/furious-luke/python-tidle#egg=tidle
+psutil
+-e git+https://github.com/furious-luke/python-tidle@d0282a04732af90008aef64e220bf5c6357bf3dc#egg=python-tidle
 -e git+https://github.com/andymccurdy/redis-py#egg=redis
 django-redis
--e git+https://github.com/furious-luke/daphne@bff72f624da775dc763b9d3a00f17c40e3ac57bf#egg=daphne
--e git+https://github.com/furious-luke/channels@828b2341671e749e6168a31857b2b176d7f7f8c2#egg=channels
+-e git+https://github.com/furious-luke/daphne@60412c3051185fd113b68f13d091682756c49002#egg=daphne
+-e git+https://github.com/furious-luke/channels@e92855214abda88e52e2744adea3c21d18b2bd7b#egg=channels
 -e git+https://github.com/furious-luke/asgi_redis@aeaa9a1470861d68ec7cab52c58efa84e23a8ff7#egg=asgi_redis
 -e git+https://github.com/furious-luke/django-redis-channel-layer@d4615c0f64ea3ee3eecc63a102121c6273b3180a#egg=django-redis-channel-layer
-django-cq==0.1.13
+django-cq==0.1.14
