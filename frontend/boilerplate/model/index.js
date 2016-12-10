@@ -4,9 +4,9 @@ import { Component } from 'react';
 import { bindActionCreators } from 'redux';
 import uuid from 'uuid';
 
-import * as modelActions from '../actions/model-actions';
+import * as modelActions from './actions';
 import { getObject, initCollection, updateCollection, removeFromCollection,
-         ModelError, splitJsonApiResponse } from '../reducers/model-utils';
+         aliasIdInCollection, isObject, ModelError, splitJsonApiResponse } from './utils';
 
 class Model {
 
@@ -24,30 +24,21 @@ class Model {
         // Add the call to the model itself.
         this[key] = (...args) => options[key]( ...args ).then( data => {
           console.debug( `Model: ${key}: `, data );
-          /* const res = this.fromJsonApi( data );
-             console.debug( `Model: ${key}: `, res ); */
           return data;
         });
-
-        /* this[key].type = this.type; */
       }
     }
   }
 
+  /**
+   * Update object values.
+   */
   update( fromObject, toObject ) {
     let _from = fromObject || {};
     let _to = toObject || {};
     let obj = {
       ..._to,
-      ..._from,
-      attributes: {
-        ...(_to.attributes || {}),
-        ...(_from.attributes || {})
-      },
-      relationships: {
-        ...(_to.relationships || {}),
-        ...(_from.relationships || {})
-      }
+      ..._from
     };
     if( obj.id === undefined )
       obj.id = uuid.v4();
@@ -95,17 +86,17 @@ class Model {
         op: 'remove',
         object: {
           id: fromObject.id,
-          type: fromObject.type
+          _type: fromObject._type
         }
       };
     }
 
     // Check for any differences.
     let changedFields = [];
-    let fields = new Set( Object.keys( toObject.attributes ).concat( Object.keys( fromObject.attributes )));
+    let fields = new Set( Object.keys( toObject ).concat( Object.keys( fromObject ) ) );
     for( const key of fields ) {
-      const fromField = fromObject.attributes[key];
-      const toField = toObject.attributes[key];
+      const fromField = fromObject[key];
+      const toField = toObject[key];
       if( fromField != toField )
         changedFields.push( key );
     }
@@ -121,28 +112,25 @@ class Model {
   }
 
   applyDiff( diff, head ) {
-    const { type, id } = diff.object;
+    const { _type: type, id } = diff.object;
+    const coll = head[type];
     let obj;
     if( diff.op == 'update' ) {
-      obj = getObject( head, type, id );
+      obj = getObject( coll, id, false );
       if( !obj )
         throw new ModelError( `Cannot update model ${type} with ID ${id}; does not exist.` );
     }
     else if( diff.op == 'create' ) {
-      if( getObject( head, type, id ) !== undefined )
+      if( getObject( coll, id, false ) !== undefined )
         throw new ModelError( `Cannot create model ${type} with ID ${id}; already exists.` );
-      obj = {
-        type,
-        attributes: {},
-        relationships: {}
-      };
+      obj = {_type: type};
     }
     else if( diff.op == 'remove' ) {
-      if( getObject( head, type, id ) === undefined )
+      if( getObject( coll, id, false ) === undefined )
         throw new ModelError( `Cannot remove model ${type} with ID ${id}; does not exist.` );
       return {
         ...head,
-        [type]: removeFromCollection( head[type], id )
+        [type]: removeFromCollection( coll, id )
       };
     }
 
@@ -151,7 +139,6 @@ class Model {
     obj = model.update( diff.object, obj );
 
     // Add the object to the head state.
-    let coll = head[type];
     return {
       ...head,
       [type]: updateCollection( coll, obj )
@@ -216,20 +203,25 @@ export class DB {
   }
 
   /**
-   * Get a model from a type and an ID.
+   * Get a model from a type and an ID. `type` can be an object,
+   * in which case the full query is taken from `type`. If `type`
+   * is a string, `idOrQuery` can be just the ID, or an object
+   * representing a query.
    */
-  get( type, id ) {
-    if( type.constructor === Object ) {
-      id = type.id;
-      type = type.type;
+  get( typeOrQuery, idOrQuery ) {
+    if( isObject( typeOrQuery ) ) {
+      const { _type, ...query } = typeOrQuery;
+      return getObject( this.data.head[_type], query, false );
     }
-    return getObject( head || this.data.head, type, id );
+    else
+      return getObject( this.data.head[typeOrQuery], idOrQuery, false );
   }
 
   /**
    *
    */
-  set( object ) {
+  set( type, object ) {
+    object = {...object, _type: type};
     if( this.component ) {
       if( !this.useState )
         this.actions.setModel( object );
@@ -252,12 +244,12 @@ export class DB {
   }
 
   _set( object ) {
-    const { id, type } = object;
+    const { id, _type } = object;
 
     // Create the diff. Note that we are interested in what
     // needs to be done to *undo* the requested changes.
-    const model = schema.getModel( type );
-    const oldObj = this.get( type, id );
+    const model = schema.getModel( _type );
+    const oldObj = this.get( _type, id );
     const newObj = model.update( object, oldObj );
     const undo = model.diff( newObj, oldObj );
     if( !undo )
@@ -270,7 +262,7 @@ export class DB {
     return {
       head: {
         ...head,
-        [type]: updateCollection( head[type], newObj )
+        [_type]: updateCollection( head[_type], newObj )
       },
       chain: {
         diffs: [
@@ -330,8 +322,8 @@ export class DB {
 
     // Calculate the head state with the undo diff applied.
     const [ undo, redo ] = diffs[current - 1];
-    const { type, id } = undo.object;
-    const model = schema.getModel( type );
+    const { _type, id } = undo.object;
+    const model = schema.getModel( _type );
     const undoneHead = model.applyDiff( undo, head );
 
     // Update the diff chain and head.
@@ -364,8 +356,8 @@ export class DB {
 
     // Calculate the head state with the redo diff applied.
     const [ undo, redo ] = diffs[current];
-    const { type, id } = redo.object;
-    const model = schema.getModel( type );
+    const { _type, id } = redo.object;
+    const model = schema.getModel( _type );
     const redoneHead = model.applyDiff( redo, head );
 
     // Update the diff chain and head.
@@ -426,39 +418,14 @@ export class DB {
     // Build the new collection for the type in question.
     const { head } = this.data;
     const coll = head[type];
-    if( !coll )
-      return;
-    const { objects = [], map = {}, alias = {} } = coll;
-    if( !(id in map) )
-      return coll;
-    const index = map[id];
-    let newMap = {
-      ...map,
-      [newId]: index
-    };
-    delete newMap[id];
-    let newColl = {
-      objects: [
-        ...objects.slice( 0, index ),
-        {
-          ...objects[index],
-          id: newId
-        },
-        ...objects.slice( index + 1 )
-      ],
-      map: newMap,
-      alias: {
-        ...alias,
-        [id]: newId
-      }
-    }
+    let newColl = aliasIdInCollection( coll, id, newId );
 
     // Also need to replace the ID in any diffs.
     const { chain = {} } = this.data;
     const { diffs = [] } = chain;
     let newDiffs = diffs.map( ([undo, redo]) => {
       let newUndo;
-      if( undo.object.id == id ) {
+      if( undo.object._type == type && undo.object.id == id ) {
         newUndo = {
           ...undo,
           object: {
@@ -470,7 +437,7 @@ export class DB {
       else
         newUndo = undo;
       let newRedo;
-      if( redo.object.id == id ) {
+      if( redo.object._type == type && redo.object.id == id ) {
         newRedo = {
           ...redo,
           object: {
@@ -481,7 +448,7 @@ export class DB {
       }
       else
         newRedo = redo;
-      return [ newUndo, newRedo ];
+      return [newUndo, newRedo];
     });
 
     this.data = {
