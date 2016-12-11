@@ -5,29 +5,31 @@ import { bindActionCreators } from 'redux';
 import uuid from 'uuid';
 
 import * as modelActions from './actions';
-import { getObject, initCollection, updateCollection, removeFromCollection,
-         aliasIdInCollection, isObject, ModelError, splitJsonApiResponse } from './utils';
+import { getObject, initCollection, updateCollection, removeFromCollection, toArray,
+         aliasIdInCollection, isObject, ModelError, splitJsonApiResponse,
+         jsonApiFromObject } from './utils';
 
 class Model {
 
   constructor( type ) {
     this.type = type;
+    this.merge = ::this.merge;
   }
 
   /**
-   * Merge endpoint operations.
+   * Merge endpoint operations. Place the operations on the model
+   * itself.
    */
   merge( options ) {
-    for( const key of [ 'list', 'create', 'detail' ] ) {
+    for( const key of ['list', 'create', 'detail'] ) {
       if( key in options ) {
-
-        // Add the call to the model itself.
         this[key] = (...args) => options[key]( ...args ).then( data => {
           console.debug( `Model: ${key}: `, data );
           return data;
         });
       }
     }
+    this.relationships = options.relationships || {};
   }
 
   /**
@@ -43,6 +45,25 @@ class Model {
     if( obj.id === undefined )
       obj.id = uuid.v4();
     return obj;
+  }
+
+  toJsonApi( object ) {
+    let data = {
+      id: object.id,
+      type: object._type,
+      attributes: {},
+      relationships: {}
+    };
+    for( const field of Object.keys( object ) ) {
+      if( field in this.relationships ) {
+        data.relationships[field] = {
+          data: object[field]
+        };
+      }
+      else if( field != 'id' && field != '_type' )
+        data.attributes[field] = object[field];
+    }
+    return data;
   }
 
   /* modelFromJsonApi( object ) {
@@ -388,16 +409,18 @@ export class DB {
     else
       _diff = diff;
 
-    const model = schema.getModel( _diff.object.type );
+    // Find the model, convert data to JSON API, and send using
+    // the appropriate operation.
+    const model = schema.getModel( _diff.object._type );
     const op = (_diff.op == 'update') ? 'detail' : _diff.op;
-    return model[op]( _diff.model );
+    return model[op]( model.toJsonApi( _diff.object ) );
   }
 
   postCommitDiff( diff, response ) {
     if( diff.op == 'create' ) {
       const { data } = response;
-      const id = (data instanceof Array) ? data[0].id : data.id;
-      this.aliasId( _diff.object.type, _diff.object.id, id );
+      const id = toArray( data )[0].id;
+      this.aliasId( diff.object._type, diff.object.id, id );
     }
   }
 
@@ -506,9 +529,10 @@ class Schema {
 
   constructor() {
     this.models = {};
+    this.merge = ::this.merge;
   }
 
-  merge( schema = {} ) {
+  merge( schema={} ) {
     for( const key of Object.keys( schema ) ) {
       let model = this.models[key];
       if( model === undefined )

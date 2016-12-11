@@ -258,9 +258,17 @@ export function flattenObject( object ) {
     id: object.id,
     ...(object.attributes || {})
   };
-  const rels = object.relationships;
-  if( rels )
-    Object.keys( rels ).forEach( x => obj[x] = rels[x].data );
+  const rels = object.relationships || {};
+  if( rels ) {
+    Object.keys( rels ).forEach( x => {
+      const relsData = rels[x].data;
+      if( !relsData )
+        return;
+      obj[x] = toArray( relsData ).map( y => Object( {id: y.id, _type: y.type} ) );
+      if( !Array.isArray( relsData ) )
+        obj[x] = obj[x][0];
+    });
+  }
   return obj;
 }
 

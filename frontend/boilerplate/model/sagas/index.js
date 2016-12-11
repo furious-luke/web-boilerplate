@@ -5,10 +5,10 @@ import models from 'models';
 
 function* fetchModelView( action ) {
   try {
-    const { name, query, props } = action.payload;
+    const {name, query, props} = action.payload;
 
     // Flag to the view that data is loading.
-    yield put({ type: 'MODEL_LOAD_VIEW_REQUEST', payload: { name } });
+    yield put( {type: 'MODEL_LOAD_VIEW_REQUEST', payload: {name}} );
 
     // Keep track of all the results of the lookups.
     let results = {};
@@ -19,17 +19,16 @@ function* fetchModelView( action ) {
       console.debug( `fetchModelView: Looking up ${name}.` );
       const data = yield call( query[name], props );
       results[name] = data;
-      yield put({ type: 'MODEL_LOAD_SUCCESS', payload: data });
+      yield put( {type: 'MODEL_LOAD_SUCCESS', payload: data} );
     }
 
     // Flag this view as ready. We also want to supply a list of IDs
     // of each type of model loaded.
-    yield put({ type: 'MODEL_LOAD_VIEW_SUCCESS', payload: { name, results } });
+    yield put( {type: 'MODEL_LOAD_VIEW_SUCCESS', payload: {name, results}} );
   }
   catch( e ) {
     console.error( e );
-    yield put({ type: 'MODEL_LOAD_VIEW_FAILURE', errors: e.message
-    });
+    yield put( {type: 'MODEL_LOAD_VIEW_FAILURE', errors: e.message} );
   }
 }
 

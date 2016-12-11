@@ -1,10 +1,8 @@
 import { combineReducers } from 'redux';
 
 import schema, { DB } from 'models';
-
 import { createReducer } from './utils';
-import { initCollection, updateCollection, splitObjects,
-         ModelError, getServer, getLocal } from './model-utils';
+import { flattenObject } from '../utils';
 
 /**
  * Manages the state for models loaded form a server. As an example
@@ -107,12 +105,16 @@ const viewReducer = createReducer({}, {
   MODEL_LOAD_VIEW_SUCCESS( state, action ) {
     const { name, results } = action.payload;
     const viewState = state[name] || {};
-    console.debug( `Model: View load success: ${name}`, results );
+    let flatResults = {};
+    Object.keys( results ).forEach( x => {
+      flatResults[x] = flattenObject( results[x].data );
+    });
+    console.debug( `Model: View load success: ${name}`, flatResults );
     return {
       ...state,
       [name]: {
         ...viewState,
-        ...results,
+        ...flatResults,
         loading: false
       }
     };
