@@ -148,11 +148,11 @@ function removeIndex( indices, object, key='id' ) {
  * appropriately. Note that this only adds new models and updates
  * existing ones.
  */
-export function updateCollection( collection, data, key='id' ) {
+export function updateCollection( collection, data, key='id', _indices ) {
 
   // If we get given an empty collection, just initialise.
   if( collection === undefined )
-    return initCollection( data, key );
+    return initCollection( toArray( data ), _indices );
 
   let { indices, objects } = collection;
   toArray( data ).forEach( obj => {
@@ -253,23 +253,26 @@ export function aliasIdInCollection( collection, oldId, newId, key='id' ) {
  * Flatten JSON API object.
  */
 export function flattenObject( object ) {
-  let obj = {
-    _type: object.type,
-    id: object.id,
-    ...(object.attributes || {})
-  };
-  const rels = object.relationships || {};
-  if( rels ) {
-    Object.keys( rels ).forEach( x => {
-      const relsData = rels[x].data;
-      if( !relsData )
-        return;
-      obj[x] = toArray( relsData ).map( y => Object( {id: y.id, _type: y.type} ) );
-      if( !Array.isArray( relsData ) )
-        obj[x] = obj[x][0];
-    });
-  }
-  return obj;
+  let objects = toArray( object ).map( x => {
+    let obj = {
+      _type: x.type,
+      id: x.id,
+      ...(x.attributes || {})
+    };
+    const rels = x.relationships || {};
+    if( rels ) {
+      Object.keys( rels ).forEach( x => {
+        const relsData = rels[x].data;
+        if( !relsData )
+          return;
+        obj[x] = toArray( relsData ).map( y => Object( {id: y.id, _type: y.type} ) );
+        if( !Array.isArray( relsData ) )
+          obj[x] = obj[x][0];
+      });
+    }
+    return obj;
+  });
+  return Array.isArray( object ) ? objects : objects[0];
 }
 
 /**

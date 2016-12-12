@@ -2,10 +2,11 @@ require( 'babel-polyfill' );
 
 import { Component } from 'react';
 import { bindActionCreators } from 'redux';
+import { put } from 'redux-saga/effects';
 import uuid from 'uuid';
 
 import * as modelActions from './actions';
-import { getObject, initCollection, updateCollection, removeFromCollection, toArray,
+import { getObject, updateCollection, removeFromCollection, toArray,
          aliasIdInCollection, isObject, ModelError, splitJsonApiResponse,
          jsonApiFromObject } from './utils';
 
@@ -30,6 +31,7 @@ class Model {
       }
     }
     this.relationships = options.relationships || {};
+    this.indices = options.indices || ['id'];
   }
 
   /**
@@ -162,28 +164,33 @@ class Model {
     // Add the object to the head state.
     return {
       ...head,
-      [type]: updateCollection( coll, obj )
+      [type]: updateCollection( coll, obj, model.indices[0], model.indices )
     };
   }
 }
 
 export class DB {
 
+  static inSaga( data ) {
+    return new DB( data, {saga: true} );
+  }
+
   /**
    * Construct a DB from either a database data object, or a React
    * component. If using a React component, the data is assumed to
    * reside under `props.models.db`.
    */
-  constructor( data, useState=false ) {
+  constructor( data, options={} ) {
     if( data instanceof Component ) {
       const src = useState ? data.state : data.props;
       const { model = {} } = src;
       this.data = model.db;
-      this.useState = useState;
+      this.useState = options.useState;
       this.component = data;
     }
     else
-      this.data = data || { head: {}, chain: {} };
+      this.data = data || {head: {}, chain: {}};
+    this.saga = options.saga || false;
   }
 
   bindDispatch( dispatch ) {
@@ -211,8 +218,9 @@ export class DB {
     const { head = {} } = this.data;
     let newHead = {};
     Object.keys( objects ).forEach( type => {
+      const model = schema.getModel( type );
       const data = objects[type];
-      newHead[type] = updateCollection( head[type], data );
+      newHead[type] = updateCollection( head[type], data, model.indices[0], model.indices );
     });
 
     // Replay all the diffs to bring us back to the correct position.
@@ -241,8 +249,8 @@ export class DB {
   /**
    *
    */
-  set( type, object ) {
-    object = {...object, _type: type};
+  set( typeOrObject, object ) {
+    object = isObject( typeOrObject ) ? typeOrObject : {_type: typeOrObject, ...object};
     if( this.component ) {
       if( !this.useState )
         this.actions.setModel( object );
@@ -255,6 +263,8 @@ export class DB {
         });
       }
     }
+    else if( this.saga )
+      return put( {type: 'MODEL_SET', payload: object} );
     else
       this.data = this._set( object );
 
@@ -283,7 +293,7 @@ export class DB {
     return {
       head: {
         ...head,
-        [_type]: updateCollection( head[_type], newObj )
+        [_type]: updateCollection( head[_type], newObj, model.indices[0], model.indices )
       },
       chain: {
         diffs: [
@@ -293,6 +303,13 @@ export class DB {
         current: current + 1
       }
     };
+  }
+
+  getOrCreate( type, query ) {
+    const obj = this.get( type, query );
+    if( obj === undefined )
+      return {_type: type, id: uuid.v4(), ...query};
+    return obj;
   }
 
   remove( type, id ) {

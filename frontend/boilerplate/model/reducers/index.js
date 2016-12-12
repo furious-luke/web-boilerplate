@@ -9,10 +9,7 @@ import { flattenObject } from '../utils';
  * of what the store would look like, let's assume we have two model
  * types, Book and Author:
  */
-const dbReducer = createReducer({
-  server: {},
-  local: {}
-}, {
+const dbReducer = createReducer({}, {
 
   /**
    * Merge loaded models into the DB.
@@ -28,12 +25,9 @@ const dbReducer = createReducer({
    * exist.
    */
   MODEL_SET( state, action ) {
-    let db = new DB( state.db );
+    let db = new DB( state );
     db.set( action.payload );
-    return {
-      ...state,
-      db: db.data
-    };
+    return db.data;
   },
 
   MODEL_SYNC_REQUEST( state, action ) {
