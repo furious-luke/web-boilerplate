@@ -2,13 +2,18 @@ require( 'babel-polyfill' );
 
 import { Component } from 'react';
 import { bindActionCreators } from 'redux';
-import { put } from 'redux-saga/effects';
 import uuid from 'uuid';
 
 import * as modelActions from './actions';
 import { getObject, updateCollection, removeFromCollection, toArray,
          aliasIdInCollection, isObject, ModelError, splitJsonApiResponse,
          jsonApiFromObject } from './utils';
+
+export function Rollback( message ) {
+  this.message = message;
+}
+Rollback.prototype = Object.create( Error.prototype );
+Rollback.prototype.name = 'Rollback';
 
 class Model {
 
@@ -171,9 +176,7 @@ class Model {
 
 export class DB {
 
-  static inSaga( data ) {
-    return new DB( data, {saga: true} );
-  }
+  static Rollback = Rollback;
 
   /**
    * Construct a DB from either a database data object, or a React
@@ -190,7 +193,6 @@ export class DB {
     }
     else
       this.data = data || {head: {}, chain: {}};
-    this.saga = options.saga || false;
   }
 
   bindDispatch( dispatch ) {
@@ -247,6 +249,49 @@ export class DB {
   }
 
   /**
+   * Begin an atomic transaction.
+   */
+  withBlock( operation ) {
+    if( this._inBlock )
+      throw TypeError( 'Already in DB block.' );
+    const { chain = {} } = this.data;
+    let { blocks = [], current, diffs = [] } = chain;
+    if( current === undefined )
+      current = diffs.length;
+    try {
+      operation();
+      this.data = {
+        ...this.data,
+        chain: {
+          ...this.data.chain,
+          blocks: [...blocks, current]
+        }
+      };
+      this._inBlock = false;
+    }
+    catch( err ) {
+      this.goto( current );
+      this.data = {
+        ...this.data,
+        chain: {
+          ...chain
+        }
+      };
+      this._inBlock = false;
+      if( !(err instanceof Rollback) )
+        throw err;
+    }
+  }
+
+  getBlockDiffs() {
+    const {chain = {}} = this.data;
+    const {blocks = [], diffs = []} = chain;
+    if( !blocks.length )
+      return [];
+    return diffs.slice( blocks[blocks.length - 1] );
+  }
+
+  /**
    *
    */
   set( typeOrObject, object ) {
@@ -263,15 +308,13 @@ export class DB {
         });
       }
     }
-    else if( this.saga )
-      return put( {type: 'MODEL_SET', payload: object} );
     else
       this.data = this._set( object );
 
     // Return the ID of the object. This is useful when we create
     // an object and don't know what ID was used.
     const { diffs, current } = this.data.chain;
-    return diffs[current - 1][0].object.id;
+    return diffs[((current === undefined) ? diffs.length : current) - 1][0].object.id;
   }
 
   _set( object ) {
@@ -289,7 +332,9 @@ export class DB {
 
     // Now add the model to the state, and update the chain.
     const { chain = {}, head = {} } = this.data;
-    const { diffs = [], current = 0 } = chain;
+    let { diffs = [], current } = chain;
+    if( current === undefined )
+      current = diffs.length;
     return {
       head: {
         ...head,
@@ -325,7 +370,9 @@ export class DB {
 
     // Now add the model to the state, and update the chain.
     const { chain = {}, head = {} } = this.data;
-    const { diffs = [], current = 0 } = chain;
+    let { diffs = [], current } = chain;
+    if( current === undefined )
+      current = diffs.length;
     this.data = {
       head: {
         ...head,
@@ -378,6 +425,8 @@ export class DB {
     const { chain = {} } = this.data;
     const { diffs = [] } = chain;
     let { current } = chain;
+    if( current === undefined )
+      current = diffs.length;
     while( current < diffs.length ) {
       this.redo();
       current += 1;
@@ -388,7 +437,9 @@ export class DB {
 
     // Don't try and operate on a non-existant diff.
     const { chain = {}, head = {} } = this.data;
-    const { current = 0, diffs = [] } = chain;
+    let { current, diffs = [] } = chain;
+    if( current === undefined )
+      current = diffs.length;
     if( current == diffs.length )
       return;
 
@@ -406,6 +457,68 @@ export class DB {
         current: current + 1
       }
     };
+  }
+
+  applyBlock( block ) {
+    for( const diff of block )
+      this.applyDiff( diff );
+    const {chain = {}} = this.data;
+    const {blocks = []} = chain;
+    this.data = {
+      ...this.data,
+      chain: {
+        ...chain,
+        blocks: [...blocks, chain.current - block.length]
+      }
+    };
+  }
+
+  applyDiff( diff ) {
+    const {head, chain = {}} = this.data;
+    let {current, diffs = []} = chain;
+    if( current === undefined )
+      current = diffs.length;
+
+    // Calculate the head state with the redo diff applied.
+    const [ undo, redo ] = diff;
+    const { _type, id } = redo.object;
+    const model = schema.getModel( _type );
+    const redoneHead = model.applyDiff( redo, head );
+
+    // Update the diff chain and head.
+    this.data = {
+      head: redoneHead,
+      chain: {
+        ...chain,
+        diffs: [
+          ...diffs,
+          diff
+        ],
+        current: current + 1
+      }
+    };
+  }
+
+  /**
+   * Move current diff location to `index`.
+   */
+  goto( index ) {
+    const { chain = {} } = this.data;
+    let { current, diffs = [] } = chain;
+    if( current === undefined )
+      current = diffs.length;
+    if( index > diffs.length )
+      throw ValueError( 'Cannot goto index greater than number of diffs.' );
+    if( index < 0 )
+      throw ValueError( 'Cannot goto negative index.' );
+    while( index < current ) {
+      this.undo();
+      index += 1;
+    }
+    while( index > current ) {
+      this.redo();
+      index -= 1;
+    }
   }
 
   /**

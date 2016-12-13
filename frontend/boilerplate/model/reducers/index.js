@@ -30,6 +30,12 @@ const dbReducer = createReducer({}, {
     return db.data;
   },
 
+  MODEL_APPLY_BLOCK( state, action ) {
+    let db = new DB( state );
+    db.applyBlock( action.payload );
+    return db.data;
+  },
+
   MODEL_SYNC_REQUEST( state, action ) {
     return {
       ...state,
