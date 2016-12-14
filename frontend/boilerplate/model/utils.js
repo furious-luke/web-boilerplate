@@ -268,6 +268,8 @@ export function flattenObject( object ) {
         obj[x] = toArray( relsData ).map( y => Object( {id: y.id, _type: y.type} ) );
         if( !Array.isArray( relsData ) )
           obj[x] = obj[x][0];
+        else
+          obj[x] = new Set( obj[x] );
       });
     }
     return obj;

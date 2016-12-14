@@ -3,6 +3,7 @@ require( 'babel-polyfill' );
 import { Component } from 'react';
 import { bindActionCreators } from 'redux';
 import uuid from 'uuid';
+import { Set } from 'immutable';
 
 import * as modelActions from './actions';
 import { getObject, updateCollection, removeFromCollection, toArray,
@@ -49,8 +50,19 @@ class Model {
       ..._to,
       ..._from
     };
+
+    // Make sure we have an ID.
     if( obj.id === undefined )
       obj.id = uuid.v4();
+
+    // Convert array relationships to sets.
+    for( const name of Object.keys( this.relationships ) ) {
+      if( Array.isArray( obj[name] ) )
+        obj[name] = new Set( obj[name] );
+      if( !Set.isSet( _from[name] ) && Set.isSet( _to[name] ) )
+        obj[name] = _to[name].union( _from[name].add ).subtract( _from[name].del );
+    }
+
     return obj;
   }
 
@@ -72,29 +84,6 @@ class Model {
     }
     return data;
   }
-
-  /* modelFromJsonApi( object ) {
-     const { relationships = {}, ...rest } = object;
-     let relations = {};
-     for( const rel of Object.keys( relationships ) )
-     relations[rel] = relationships[rel].data;
-     return {
-     ...rest,
-     relationships: relations
-     };
-     }
-
-     fromJsonApi( response ) {
-     const { data, included = [] } = response || {};
-     const _data = (data instanceof Array) ? data : [ data ];
-     let results = [
-     _data.map( o => this.modelFromJsonApi( o ) ),
-     included.map( o => this.modelFromJsonApi( o ) ),
-     ];
-     if( !(data instanceof Array) )
-     results[0] = results[0][0];
-     return results;
-     } */
 
   diff( fromObject, toObject ) {
 
@@ -120,19 +109,30 @@ class Model {
     }
 
     // Check for any differences.
-    let changedFields = [];
+    let changedFields = {};
     let fields = new Set( Object.keys( toObject ).concat( Object.keys( fromObject ) ) );
     for( const key of fields ) {
-      const fromField = fromObject[key];
-      const toField = toObject[key];
-      if( fromField != toField )
-        changedFields.push( key );
+      let fromField = fromObject[key];
+      let toField = toObject[key];
+      if( key in this.relationships && Set.isSet( fromField ) ) {
+        fromField = new Set( fromField || [] );
+        toField = new Set( toField || [] );
+        changedFields[key] = {
+          add: toField.subtract( fromField ),
+          del: fromField.subtract( toField )
+        };
+      }
+      else if( fromField != toField )
+        changedFields[key] = toObject[key];
     }
-    if( changedFields.length ) {
+    if( Object.keys( changedFields ).length ) {
       return {
         op: 'update',
-        object: toObject,
-        fields: changedFields
+        object: {
+          _type: toObject._type,
+          id: toObject.id,
+          ...changedFields
+        }
       };
     }
 
@@ -165,6 +165,10 @@ class Model {
     // Update the object with new attributes.
     const model = schema.getModel( type );
     obj = model.update( diff.object, obj );
+
+    // Update reverse relationships if there were any changes to
+    // the relationships as a result of this diff.
+    // TODO
 
     // Add the object to the head state.
     return {
