@@ -37,6 +37,7 @@ class Model {
       }
     }
     this.relationships = options.relationships || {};
+    this.reverseRelationships = {};
     this.indices = options.indices || ['id'];
   }
 
@@ -57,10 +58,18 @@ class Model {
 
     // Convert array relationships to sets.
     for( const name of Object.keys( this.relationships ) ) {
-      if( Array.isArray( obj[name] ) )
-        obj[name] = new Set( obj[name] );
-      if( !Set.isSet( _from[name] ) && Set.isSet( _to[name] ) )
-        obj[name] = _to[name].union( _from[name].add ).subtract( _from[name].del );
+      if( this.relationships[name].many ) {
+        if( toObject !== undefined ) {
+          const base = _to[name] || new Set();
+          obj[name] = base.union( _from[name].add ).subtract( _from[name].del );
+        }
+        else {
+          let base = _from[name];
+          if( !Set.isSet( base ) )
+            base = new Set( toArray( base ) );
+          obj[name] = base;
+        }
+      }
     }
 
     return obj;
@@ -114,7 +123,7 @@ class Model {
     for( const key of fields ) {
       let fromField = fromObject[key];
       let toField = toObject[key];
-      if( key in this.relationships && Set.isSet( fromField ) ) {
+      if( key in this.relationships && this.relationships[key].many ) {
         fromField = new Set( fromField || [] );
         toField = new Set( toField || [] );
         changedFields[key] = {
@@ -151,30 +160,102 @@ class Model {
     else if( diff.op == 'create' ) {
       if( getObject( coll, id, false ) !== undefined )
         throw new ModelError( `Cannot create model ${type} with ID ${id}; already exists.` );
-      obj = {_type: type};
     }
     else if( diff.op == 'remove' ) {
       if( getObject( coll, id, false ) === undefined )
         throw new ModelError( `Cannot remove model ${type} with ID ${id}; does not exist.` );
+
+      // Remove references to any objects pointing to me.
+      // TODO
+
       return {
         ...head,
         [type]: removeFromCollection( coll, id )
       };
     }
 
-    // Update the object with new attributes.
+    // Begin updating head.
     const model = schema.getModel( type );
+    let newHead = {...head};
+
+    // Remove any modified foreign-keys, and also update any
+    // many-to-manys that have been removed.
+    if( diff.op == 'update' ) {
+      for( const field of Object.keys( diff.object ) ) {
+        const info = model.relationships[field];
+        if( !info || !info.relatedName )
+          continue;
+        if( info.many ) {
+          for( const fromId of diff.object[field].del )
+            newHead = this.removeRelationship( fromId, info.relatedName, {_type: obj._type, id: obj.id}, newHead )
+        }
+        else {
+          const relId = obj[field];
+          if( !relId )
+            continue;
+          if( Set.isSet( relId ) )
+            throw 'Likely missing `many=true` on model.';
+          newHead = this.removeRelationship( relId, info.relatedName, {_type: obj._type, id: obj.id}, newHead )
+        }
+      }
+    }
+
+    // Update the object with new attributes.
     obj = model.update( diff.object, obj );
 
-    // Update reverse relationships if there were any changes to
-    // the relationships as a result of this diff.
-    // TODO
+    // Add in any relations.
+    for( const field of Object.keys( diff.object ) ) {
+      const info = model.relationships[field];
+      if( !info || !info.relatedName )
+        continue;
+      if( info.many ) {
+        if( diff.op != 'create' ) {
+          for( const toId of diff.object[field].add )
+            newHead = this.addRelationship( toId, info.relatedName, {_type: obj._type, id: obj.id}, newHead )
+        }
+        else
+          newHead = this.addRelationship( diff.object[field], info.relatedName, {_type: obj._type, id: obj.id}, newHead )
+      }
+      else {
+        const relId = obj[field];
+        if( !relId )
+          continue;
+        newHead = this.addRelationship( relId, info.relatedName, {_type: obj._type, id: obj.id}, newHead )
+      }
+    }
 
-    // Add the object to the head state.
+    // Return the new collection.
     return {
       ...head,
       [type]: updateCollection( coll, obj, model.indices[0], model.indices )
     };
+  }
+
+  removeRelationship( fromId, fieldName, relId, head ) {
+    console.log( fromId, fieldName, relId );
+    const coll = head[fromId._type];
+    const fromObj = getObject( coll, {id: fromId.id} );
+    const newObj = {
+      ...fromObj,
+      [fieldName]: fromObj[fieldName].delete( relId )
+    };
+    return {
+      ...head,
+      [newObj._type]: updateCollection( coll, newObj )
+    }
+  }
+
+  addRelationship( toId, fieldName, relId, head ) {
+    const coll = head[toId._type];
+    const toObj = getObject( coll, {id: relId.id} );
+    const newObj = {
+      ...toObj,
+      [fieldName]: toObj[fieldName].add( relId )
+    };
+    return {
+      ...head,
+      [newObj._type]: updateCollection( coll, newObj )
+    }
   }
 }
 
@@ -228,12 +309,47 @@ export class DB {
       const data = objects[type];
       newHead[type] = updateCollection( head[type], data, model.indices[0], model.indices );
     });
-
-    // Replay all the diffs to bring us back to the correct position.
     this.data = {
       ...this.data,
       head: newHead
     };
+
+    // Update reverse-related fields.
+    for( const type of Object.keys( objects ) ) {
+      const model = schema.getModel( type );
+      for( const obj of objects[type] ) {
+        for( const field of Object.keys( obj ) ) {
+          if( !(field in model.relationships) )
+            continue;
+          const relatedName = model.relationships[field].relatedName;
+          if( !relatedName )
+            continue;
+          if( !obj[field] )
+            continue;
+          const allRelated = Set.isSet( obj[field] ) ? obj[field] : toArray( obj[field] );
+          for( const relId of allRelated ) {
+            const relModel = schema.getModel( relId._type );
+            const related = this.get( relId );
+            if( related === undefined )
+              continue;
+            const newField = Set.isSet( related[relatedName] ) ? related[relatedName] : new Set();
+            const newRelated = {
+              ...related,
+              [relatedName]: newField.add( {_type: obj._type, id: obj.id} )
+            };
+            this.data = {
+              ...this.data,
+              head: {
+                ...this.data.head,
+                [relId._type]: updateCollection( this.data.head[relId._type], newRelated, relModel.indices[0], relModel.indices )
+              }
+            };
+          }
+        }
+      }
+    }
+
+    // Replay all the diffs to bring us back to the correct position.
     this.redoAll( current );
   }
 
@@ -676,6 +792,21 @@ class Schema {
 
       // TODO: Check this perhaps?
       this[key] = model;
+    }
+
+    // Update reverse relationships.
+    for( const key of Object.keys( schema ) ) {
+      let model = this.models[key];
+      for( const relation of Object.keys( model.relationships ) ) {
+        const info = model.relationships[relation];
+        if( !info.relatedName || !info.type )
+          continue;
+        let relModel = this.models[info.type];
+        relModel.reverseRelationships[info.relatedName] = {
+          type: key,
+          relatedName: relation
+        };
+      }
     }
   }
 
