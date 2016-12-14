@@ -241,6 +241,11 @@ def shell_plus():
     manage('shell_plus')
 
 
+@task(alias='csu')
+def createsuperuser():
+    manage('createsuperuser')
+
+
 @task
 def migrate(prod=False, remote=False):
     """Migrate the database.
