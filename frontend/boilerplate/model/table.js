@@ -2,7 +2,7 @@ import { List, Map, Set, fromJS, Record } from 'immutable';
 import { ModelError, toIndexMap } from './utils';
 import uuid from 'uuid';
 
-import { isObject } from './utils';
+import { ID, isObject } from './utils';
 
 class Table {
 
@@ -114,13 +114,13 @@ class Table {
 
       // Eliminate the object's index from current indices and set the
       // new object.
-      const index = this.data.getIn( ['indices', this.idField, id] ).first();
+      const index = this._getIndex( id );
       this._removeFromIndices( existing );
       this.data = this.data.setIn( ['objects', index], object );
     }
 
     // Add indices.
-    const index = this.data.getIn( ['indices', this.idField, id] ).first();
+    const index = this._getIndex( id );
     this.data.get( 'indices' ).forEach( (ii, field) => {
       if( field == this.idField )
         return;
@@ -131,12 +131,16 @@ class Table {
     });
   }
 
+  _getIndex( id ) {
+    return this.data.getIn( ['indices', this.idField, id] ).first();
+  }
+
   /**
    * Eliminate the object's index from current indices.
    */
   _removeFromIndices( object ) {
     const id = object.get( this.idField );
-    const index = this.data.getIn( ['indices', this.idField, id] ).first();
+    const index = this._getIndex( id );
     this.data.get( 'indices' ).forEach( (ii, field) => {
       if( field == this.idField )
         return;
@@ -156,7 +160,7 @@ class Table {
     if( !obj )
       return;
     const id = obj.get( 'id' );
-    const index = this.data.getIn( ['indices', this.idField, id] ).first();
+    const index = this._getIndex( id );
 
     // Remove from extra indices and also the ID index.
     this._removeFromIndices( obj );
@@ -168,11 +172,21 @@ class Table {
   }
 
   reId( oldId, newId ) {
-    const index = this.data.getIn( ['indices', this.idField, oldId] ).first();
+    const index = this._getIndex( oldId );
     this.data = this.data
                     .deleteIn( ['indices', this.idField, oldId] )
                     .setIn( ['indices', this.idField, newId], new Set( [index] ) )
                     .setIn( ['objects', index, this.idField], newId );
+  }
+
+  addRelationship( id, field, related ) {
+    const index = this._getIndex( id );
+    this.data = this.data.updateIn( ['objects', index, field], x => x.add( ID( related ) ) );
+  }
+
+  removeRelationship( id, field, related ) {
+    const index = this._getIndex( id );
+    this.data = this.data.updateIn( ['objects', index, field], x => x.delete( ID( related ) ) );
   }
 }
 

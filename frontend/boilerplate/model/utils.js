@@ -1,4 +1,4 @@
-import { List, Map, Set } from 'immutable';
+import { List, Map, Set, Record } from 'immutable';
 import uuid from 'uuid';
 
 export function isObject( x ) {
@@ -43,6 +43,11 @@ function ModelTooManyResults( message ) {
 }
 ModelTooManyResults.prototype = Object.create( Error.prototype );
 ModelTooManyResults.prototype.name = 'ModelTooManyResults';
+
+export const ID = Record({
+  _type: undefined,
+  id: undefined
+});
 
 /**
  *

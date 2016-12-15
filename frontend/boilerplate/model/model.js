@@ -3,7 +3,7 @@ require( 'babel-polyfill' );
 import { Set, Record, fromJS } from 'immutable';
 import uuid from 'uuid';
 
-import { toArray } from './utils';
+import { ID, toArray } from './utils';
 
 export default class Model {
 
@@ -53,9 +53,14 @@ export default class Model {
   toObject( objData ) {
     let obj = new this._record( objData || {} );
     this.relationships.forEach( (rel, name) => {
-      const val = obj.get( name );
-      if( rel.get( 'many' ) && !Set.isSet( val ) )
-        obj = obj.set( name, new Set( toArray( val ) ) );
+      if( rel.get( 'many' ) ) {
+        let val = obj.get( name );
+        if( !Set.isSet( val ) )
+          val = toArray( val );
+        obj = obj.set( name, new Set(
+          val.map( x => ID( x ) )
+        ));
+      }
     });
     return obj;
   }
