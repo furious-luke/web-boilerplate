@@ -23,7 +23,7 @@ export function toList( x ) {
   return new List([ x ]);
 }
 
-function ModelError( message ) {
+export function ModelError( message ) {
   this.message = message;
   this.stack = (new Error()).stack;
 }
@@ -48,16 +48,16 @@ ModelTooManyResults.prototype.name = 'ModelTooManyResults';
  *
  */
 export function toIndexMap( objects, key='id' ) {
-  if( isEmpty( objects ) )
-    return [];
   let index = new Map();
-  objects.forEach( (item, ii) => {
-    const val = item[key];
-    if( !index.has( val ) )
-      index = index.set( val, new Set([ ii ]) );
-    else
-      index = index.updateIn([ val ], x => x.add( ii ));
-  });
+  if( !isEmpty( objects ) ) {
+    objects.forEach( (item, ii) => {
+      const val = item[key];
+      if( !index.has( val ) )
+        index = index.set( val, new Set([ ii ]) );
+      else
+        index = index.updateIn([ val ], x => x.add( ii ));
+    });
+  }
   return index;
 }
 

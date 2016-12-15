@@ -16,7 +16,7 @@ export function Rollback( message ) {
 Rollback.prototype = Object.create( Error.prototype );
 Rollback.prototype.name = 'Rollback';
 
-class Model {
+export class Model {
 
   constructor( type ) {
     this.type = type;
