@@ -1,3 +1,5 @@
+import { Map } from 'immutable';
+
 import Model from './model';
 
 export class Schema {
@@ -21,13 +23,14 @@ export class Schema {
   _updateReverseRelationships() {
     this.models.forEach( (model, name) => {
       model.relationships.forEach( (relDescr, field) => {
-        if( !relDescr.has( 'relatedName' ) || !relDescr.has( 'type' ) )
+        if( !relDescr.has( 'relatedName' ) || !relDescr.has( 'type' ) || relDescr.get( 'reverse' ) )
           return;
-        let relModel = this.getModel( relDescr.type );
-        relModel.addReverseRelationship( info.relatedName, new Map({
+        let relModel = this.getModel( relDescr.get( 'type' ) );
+        relModel.addReverseRelationship( relDescr.get( 'relatedName' ), new Map({
           type: model.type,
           relatedName: field,
-          reverse: true
+          reverse: true,
+          many: true
         }));
         this.models = this.models.set( relModel.type, relModel );
       });
@@ -39,10 +42,12 @@ export class Schema {
   }
 
   toObjects( data ) {
-    return data.map( objData => {
-      const model = this.getModel( objData._type );
-      return model.toObject( objData );
-    });
+    return data.map( objData => this.toObject( objData ) );
+  }
+
+  toObject( data ) {
+    const model = this.getModel( data._type );
+    return model.toObject( data );
   }
 
         /* calcDiffs( state ) {

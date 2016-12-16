@@ -44,10 +44,27 @@ function ModelTooManyResults( message ) {
 ModelTooManyResults.prototype = Object.create( Error.prototype );
 ModelTooManyResults.prototype.name = 'ModelTooManyResults';
 
+export function Rollback( message ) {
+  this.message = message;
+}
+Rollback.prototype = Object.create( Error.prototype );
+Rollback.prototype.name = 'Rollback';
+
 export const ID = Record({
   _type: undefined,
   id: undefined
 });
+
+export function makeId( type, id ) {
+  return new ID( {_type: type, id: id} );
+}
+
+export function getDiffId( diff ) {
+  return {
+    _type: diff._type[0] || diff._type[1],
+    id: (diff.id[0] !== undefined) ? diff.id[0] : diff.id[1]
+  };
+}
 
 /**
  *

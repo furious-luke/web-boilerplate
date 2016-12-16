@@ -2,7 +2,7 @@ import { List, Map, Set, fromJS, Record } from 'immutable';
 import { ModelError, toIndexMap } from './utils';
 import uuid from 'uuid';
 
-import { ID, isObject } from './utils';
+import { getDiffId, ID, isObject } from './utils';
 
 class Table {
 
@@ -94,7 +94,7 @@ class Table {
       object.get( 'id' );
     }
     catch( e ) {
-      object = this.schema.toObjects([ object ])[0];
+      object = this.schema.toObject( object );
     }
 
     // If the object doesn't exist, just add it on to the end. Don't
@@ -187,6 +187,69 @@ class Table {
   removeRelationship( id, field, related ) {
     const index = this._getIndex( id );
     this.data = this.data.updateIn( ['objects', index, field], x => x.delete( ID( related ) ) );
+  }
+
+  *iterRelated( id, field ) {
+    const obj = this.get( id );
+    if( obj ) {
+      const model = this.schema.getModel( obj._type );
+      if( model.relationships.getIn( [field, 'many'] ) ) {
+        for( const rel of obj[field] )
+          yield rel;
+      }
+      else if( obj[field] )
+        yield obj[field];
+    }
+  }
+
+  applyDiff( diff ) {
+    const id = getDiffId( diff );
+    let obj = this.get( id.id );
+    const model = this.getModel();
+
+    // Creation.
+    if( diff._type[0] === undefined ) {
+      if( obj !== undefined )
+        throw ModelError( 'Trying to create an object that already exists.' );
+      let newObj = {};
+      Object.keys( diff ).forEach( x => newObj[x] = diff[x][1] );
+      this.set( model.toObject( newObj ) );
+    }
+
+    // Removal.
+    else if( diff._type[1] === undefined ) {
+      if( obj === undefined )
+        throw ModelError( 'Trying to remove an object that doesn\'t exist.' );
+      this.remove( diff.id[0] );
+    }
+
+    // Update.
+    else {
+      if( obj === undefined )
+        throw ModelError( 'Trying to update an object that doesn\'t exist.' );
+      Object.keys( diff ).forEach( x => {
+        const relInfo = model.relationships.get( x );
+        if( relInfo && relInfo.get( 'many' ) ) {
+          diff[x][0].forEach( y => obj = obj.set( x, obj[x].delete( ID( y ) ) ) );
+          diff[x][1].forEach( y => obj = obj.set( x, obj[x].add( ID( y ) ) ) );
+        }
+        else
+          obj = obj.set( x, diff[x][1] )
+      });
+      this.set( model.toObject( obj ) );
+    }
+  }
+
+  getModel() {
+    const type = this.getType();
+    if( type )
+      return this.schema.getModel( type );
+  }
+
+  getType() {
+    const obj = this.data.getIn( ['objects', 0] );
+    if( obj )
+      return obj._type;
   }
 }
 

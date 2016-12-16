@@ -46,7 +46,7 @@ export default class Model {
   }
 
   addReverseRelationship( field, relation ) {
-    this.relationships = this.relationships.update( field, relation );
+    this.relationships = this.relationships.set( field, relation );
     this._makeRecord();
   }
 
@@ -63,5 +63,56 @@ export default class Model {
       }
     });
     return obj;
+  }
+
+  *iterFields() {
+    yield '_type';
+    yield 'id';
+    for( const x of this.attributes.keys() )
+      yield x;
+    for( const x of this.relationships.keys() )
+      yield x;
+  }
+
+  diff( fromObject, toObject ) {
+    let diff = {};
+
+    // Check for creation.
+    if( fromObject === undefined ) {
+      if( toObject === undefined )
+        return;
+      for( const field of this.iterFields() )
+        diff[field] = [undefined, toObject[field]];
+      return diff;
+    }
+
+    // Check for remove.
+    else if( toObject === undefined ) {
+      for( const field of this.iterFields() )
+        diff[field] = [fromObject[field], undefined];
+      return diff;
+    }
+
+    // Use field differences.
+    else {
+      let size = 0;
+      for( const field of this.iterFields() ) {
+        diff[field] = [fromObject[field], toObject[field]];
+        if( field == '_type' || field == 'id' )
+          continue;
+        if( diff[field][0] == diff[field][1] )
+          delete diff[field];
+        else {
+          size += 1;
+          const relInfo = this.relationships.get( field );
+          if( relInfo && relInfo.get( 'many' ) ) {
+            diff[field][0] = fromObject[field].subtract( toObject[field] );
+            diff[field][1] = toObject[field].subtract( fromObject[field] );
+          }
+        }
+      }
+      if( size )
+        return diff;
+    }
   }
 }
