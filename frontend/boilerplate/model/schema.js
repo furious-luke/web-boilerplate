@@ -1,6 +1,8 @@
 import { Map } from 'immutable';
 
+import DB from './db';
 import Model from './model';
+import { ModelError, makeId } from './utils';
 
 export class Schema {
 
@@ -37,6 +39,14 @@ export class Schema {
     });
   }
 
+  db( data ) {
+    return new DB( data, {schema: this} );
+  }
+
+  makeId( typeOrObj, id ) {
+    return makeId( typeOrObj, id );
+  }
+
   getModel( type ) {
     return this.models.get( type );
   }
@@ -47,6 +57,8 @@ export class Schema {
 
   toObject( data ) {
     const model = this.getModel( data._type );
+    if( model === undefined )
+      throw new ModelError( `Unknown model type: ${data._type}` );
     return model.toObject( data );
   }
 

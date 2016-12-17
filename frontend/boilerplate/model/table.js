@@ -10,13 +10,16 @@ class Table {
    * `data` can be one of: a list of objects, a pre-constructed immutable
    * map containing table data, or undefined.
    */
-  constructor( data, options ) {
-    let {schema, idField='id', indices=['id']} = options || {};
+  constructor( type, options ) {
+    this.type = type;
+    let {data, schema, idField='id', indices} = options || {};
+    if( !indices )
+      indices = schema.getModel( type ).indices;
+    if( !indices )
+      indices = ['id'];
     indices = new Set( indices );
     if( !indices.has( idField ) )
       throw new ModelError( `idField: ${idField} not found in indices: ${indices}` );
-    /* if( schema === undefined )
-       schema = globalSchema; */
     this.schema = schema;
     this.idField = idField;
     if( data ) {
@@ -179,6 +182,21 @@ class Table {
                     .setIn( ['objects', index, this.idField], newId );
   }
 
+  forEachRelatedObject( id, callback ) {
+    const obj = this.get( id );
+    const model = this.getModel();
+    for( const field of model.iterForeignKeys() ) {
+      const relName = model.relationships.getIn( [field, 'relatedName'] );
+      if( obj[field] )
+        callback( obj[field], relName );
+    }
+    for( const field of model.iterManyToMany() ) {
+      const relName = model.relationships.getIn( [field, 'relatedName'] );
+      for( const rel of obj[field] )
+        callback( rel, relName );
+    }
+  }
+
   addRelationship( id, field, related ) {
     const index = this._getIndex( id );
     this.data = this.data.updateIn( ['objects', index, field], x => x.add( ID( related ) ) );
@@ -202,25 +220,27 @@ class Table {
     }
   }
 
-  applyDiff( diff ) {
+  applyDiff( diff, reverse=false ) {
+    const ii = reverse ? 1 : 0;
+    const jj = reverse ? 0 : 1;
     const id = getDiffId( diff );
     let obj = this.get( id.id );
     const model = this.getModel();
 
     // Creation.
-    if( diff._type[0] === undefined ) {
+    if( diff._type[ii] === undefined ) {
       if( obj !== undefined )
         throw ModelError( 'Trying to create an object that already exists.' );
       let newObj = {};
-      Object.keys( diff ).forEach( x => newObj[x] = diff[x][1] );
+      Object.keys( diff ).forEach( x => newObj[x] = diff[x][jj] );
       this.set( model.toObject( newObj ) );
     }
 
     // Removal.
-    else if( diff._type[1] === undefined ) {
+    else if( diff._type[jj] === undefined ) {
       if( obj === undefined )
         throw ModelError( 'Trying to remove an object that doesn\'t exist.' );
-      this.remove( diff.id[0] );
+      this.remove( diff.id[ii] );
     }
 
     // Update.
@@ -230,20 +250,18 @@ class Table {
       Object.keys( diff ).forEach( x => {
         const relInfo = model.relationships.get( x );
         if( relInfo && relInfo.get( 'many' ) ) {
-          diff[x][0].forEach( y => obj = obj.set( x, obj[x].delete( ID( y ) ) ) );
-          diff[x][1].forEach( y => obj = obj.set( x, obj[x].add( ID( y ) ) ) );
+          diff[x][ii].forEach( y => obj = obj.set( x, obj[x].delete( ID( y ) ) ) );
+          diff[x][jj].forEach( y => obj = obj.set( x, obj[x].add( ID( y ) ) ) );
         }
         else
-          obj = obj.set( x, diff[x][1] )
+          obj = obj.set( x, diff[x][jj] )
       });
       this.set( model.toObject( obj ) );
     }
   }
 
   getModel() {
-    const type = this.getType();
-    if( type )
-      return this.schema.getModel( type );
+    return this.schema.getModel( this.type );
   }
 
   getType() {

@@ -3,7 +3,7 @@ import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
 import * as modelActions from '../actions';
-import { DB } from '..';
+import DB from '../db';
 import { isObject } from '../utils';
 
 /**
@@ -18,23 +18,13 @@ export default (ComposedComponent, options) => {
   return connect(
 
     state => {
-      const { name } = options || {};
+      const { name, schema } = options || {};
       const { model = {} } = state;
       const { views = {} } = model;
-      const db = new DB( model.db );
-      let data = {};
-      Object.keys( views[name] || {} ).forEach( x => {
-        const value = views[name][x];
-        if( !isObject( value ) )
-          data[x] = value;
-        else if( Array.isArray( value ) )
-          data[x] = value.map( y => db.get( {_type: y._type, id: y.id} ) );
-        else
-          data[x] = db.get( {_type: value._type, id: value.id} );
-      });
-      console.debug( 'SyncedComponent: ', data );
+      const db = new DB( model.db, {schema} );
+      console.debug( 'SyncedComponent: ', views[name] );
       return {
-        ...data,
+        ...views[name],
         db
       };
     },

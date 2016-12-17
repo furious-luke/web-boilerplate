@@ -1,3 +1,4 @@
+import { Map } from 'immutable';
 import { combineReducers } from 'redux';
 
 import schema, { DB } from 'models';
@@ -9,7 +10,7 @@ import { flattenObject } from '../utils';
  * of what the store would look like, let's assume we have two model
  * types, Book and Author:
  */
-const dbReducer = createReducer({}, {
+const dbReducer = createReducer( null, {
 
   /**
    * Merge loaded models into the DB.
@@ -20,14 +21,8 @@ const dbReducer = createReducer({}, {
     return db.data;
   },
 
-  /**
-   * Update attributes of a model, creating the model if it doesn't
-   * exist.
-   */
-  MODEL_SET( state, action ) {
-    let db = new DB( state );
-    db.set( action.payload );
-    return db.data;
+  MODEL_SET_DB( state, action ) {
+    return action.payload;
   },
 
   MODEL_APPLY_BLOCK( state, action ) {
@@ -105,16 +100,12 @@ const viewReducer = createReducer({}, {
   MODEL_LOAD_VIEW_SUCCESS( state, action ) {
     const { name, results } = action.payload;
     const viewState = state[name] || {};
-    let flatResults = {};
-    Object.keys( results ).forEach( x => {
-      flatResults[x] = flattenObject( results[x].data );
-    });
-    console.debug( `Model: View load success: ${name}`, flatResults );
+    console.debug( `Model: View load success: ${name}`, results );
     return {
       ...state,
       [name]: {
         ...viewState,
-        ...flatResults,
+        ...results,
         loading: false
       }
     };

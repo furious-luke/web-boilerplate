@@ -55,8 +55,11 @@ export const ID = Record({
   id: undefined
 });
 
-export function makeId( type, id ) {
-  return new ID( {_type: type, id: id} );
+export function makeId( typeOrObj, id ) {
+  if( id === undefined )
+    return new ID( {_type: typeOrObj._type, id: typeOrObj.id} );
+  else
+    return new ID( {_type: typeOrObj, id} );
 }
 
 export function getDiffId( diff ) {
@@ -64,6 +67,15 @@ export function getDiffId( diff ) {
     _type: diff._type[0] || diff._type[1],
     id: (diff.id[0] !== undefined) ? diff.id[0] : diff.id[1]
   };
+}
+
+export function getDiffOp( diff ) {
+  if( diff._type[0] === undefined )
+    return 'create';
+  else if( diff._type[1] === undefined )
+    return 'remove';
+  else
+    return 'detail';
 }
 
 /**

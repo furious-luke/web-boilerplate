@@ -1,6 +1,6 @@
 require( 'babel-polyfill' );
 
-import { Set, Record, fromJS } from 'immutable';
+import { OrderedSet, Set, Record, fromJS } from 'immutable';
 import uuid from 'uuid';
 
 import { ID, toArray } from './utils';
@@ -40,7 +40,7 @@ export default class Model {
       data[name] = attr.get( 'default' );
     });
     this.relationships.forEach( (rel, name) => {
-      data[name] = rel.get( 'many' ) ? new Set() : undefined;
+      data[name] = rel.get( 'many' ) ? new OrderedSet() : undefined;
     });
     this._record = Record( data );
   }
@@ -50,14 +50,21 @@ export default class Model {
     this._makeRecord();
   }
 
+  update( obj, values ) {
+    Object.keys( values ).forEach( field => {
+      obj = obj.set( field, values[field] );
+    });
+    return obj;
+  }
+
   toObject( objData ) {
     let obj = new this._record( objData || {} );
     this.relationships.forEach( (rel, name) => {
       if( rel.get( 'many' ) ) {
         let val = obj.get( name );
-        if( !Set.isSet( val ) )
+        if( !OrderedSet.isOrderedSet( val ) && !Set.isSet( val ) )
           val = toArray( val );
-        obj = obj.set( name, new Set(
+        obj = obj.set( name, new OrderedSet(
           val.map( x => ID( x ) )
         ));
       }
@@ -70,8 +77,31 @@ export default class Model {
     yield 'id';
     for( const x of this.attributes.keys() )
       yield x;
-    for( const x of this.relationships.keys() )
+    for( const x of this.iterRelationships() )
       yield x;
+  }
+
+  *iterRelationships() {
+    for( const x of this.iterForeignKeys() )
+      yield x;
+    for( const x of this.iterManyToMany() )
+      yield x;
+  }
+
+  *iterManyToMany() {
+    for( const field of this.relationships.keys() ) {
+      if( this.relationships.getIn( [field, 'reverse'] ) || !this.relationships.getIn( [field, 'many'] ) )
+        continue;
+      yield field;
+    }
+  }
+
+  *iterForeignKeys() {
+    for( const field of this.relationships.keys() ) {
+      if( this.relationships.getIn( [field, 'reverse'] ) || this.relationships.getIn( [field, 'many'] ) )
+        continue;
+      yield field;
+    }
   }
 
   diff( fromObject, toObject ) {
@@ -103,16 +133,47 @@ export default class Model {
         if( diff[field][0] == diff[field][1] )
           delete diff[field];
         else {
-          size += 1;
           const relInfo = this.relationships.get( field );
-          if( relInfo && relInfo.get( 'many' ) ) {
-            diff[field][0] = fromObject[field].subtract( toObject[field] );
-            diff[field][1] = toObject[field].subtract( fromObject[field] );
+          if( relInfo ) {
+            if( diff[field][0].equals( diff[field][1] ) )
+              delete diff[field];
+            else if( relInfo && relInfo.get( 'many' ) ) {
+              size += 1;
+              diff[field][0] = fromObject[field].subtract( toObject[field] );
+              diff[field][1] = toObject[field].subtract( fromObject[field] );
+            }
+            else
+              size += 1;
           }
+          else
+            size += 1;
         }
       }
       if( size )
         return diff;
     }
+  }
+
+  diffToJsonApi( diff ) {
+    let data = {
+      type: diff._type[1],
+      id: diff.id[1],
+      attributes: {},
+      relationships: {}
+    };
+    const op = getDiffOp( diff );
+    for( const field of this.attributes.keys() ) {
+      if( field in diff )
+        data.attributes[field] = diff[field][1];
+    }
+    for( const field of this.iterForeignKeys() ) {
+      if( field in diff ) {
+        const x = diff[field][1];
+        data.relationships[field] = {
+          data: x ? {type: x._type, id: x.id} : null
+        };
+      }
+    }
+    return data;
   }
 }
