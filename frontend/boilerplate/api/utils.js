@@ -2,6 +2,13 @@
 // import 'jquery.cookie';
 import Cookies from 'js-cookie';
 
+export function ApiError( message ) {
+  this.message = message;
+  this.stack = (new Error()).stack;
+}
+ApiError.prototype = Object.create( Error.prototype );
+ApiError.prototype.name = 'ApiError';
+
 export function supplant( text, o ) {
   return text.replace(
     /{([^{}]*)}/g,
@@ -53,7 +60,7 @@ function fetchHeaders( opts ) {
     'X-Requested-With': 'XMLHttpRequest'
   });
   if( dataType == 'json' )
-    headers.set( 'Content-Type', 'application/json' );
+    headers.set( 'Content-Type', 'application/vnd.api+json' );
   if( !(/^(GET|HEAD|OPTIONS\TRACE)$/i.test( method )) )
     headers.set( 'X-CSRFToken', csrfSettings.token );
   return headers;
@@ -68,8 +75,12 @@ export function ajax( url, body, method, dataType ) {
   });
   return fetch( request )
     .then( response => {
-      if( response.ok )
-        return response.json();
+      if( response.ok ) {
+        if( response.status != 204 )
+          return response.json();
+        else
+          return {};
+      }
       return response.json()
                      .catch( e => Object({ status: response.status }))
                      .then( e => Promise.reject( e ));

@@ -27,7 +27,7 @@ class Api {
     // Prepare the context to be passed to the request method.
     let ctx = {
       type: 'json',
-      path: path,
+      path: path + '/',
       method: method,
       ...options
     };
@@ -90,9 +90,8 @@ class Api {
     this.crud[ep[0]] = {
       list: this.makeEndpoint( 'list' + baseNamePlural, basePath, 'GET' ),
       create: this.makeEndpoint( 'create' + baseName, basePath, 'POST', {
-        handler: (req, id, data, opts = {}) => req({
+        handler: (req, data, opts = {}) => req({
           ...opts,
-          args: { id },
           data
         })
       }),
@@ -100,14 +99,23 @@ class Api {
         handler: (req, id, opts = {}) => {
           return req({
             ...opts,
-            args: { id }
+            args: {id}
           });
         }
       }),
-      del: this.makeEndpoint( 'delete' + baseName, basePath + '/{id}', 'DELETE', {
+      update: this.makeEndpoint( 'get' + baseName, basePath + '/{id}', 'PATCH', {
+        handler: (req, id, data, opts = {}) => {
+          return req({
+            ...opts,
+            args: {id},
+            data
+          });
+        }
+      }),
+      remove: this.makeEndpoint( 'remove' + baseName, basePath + '/{id}', 'DELETE', {
         handler: (req, id, opts = {}) => req({
           ...opts,
-          args: { id }
+          args: {id}
         })
       })
     };
@@ -157,7 +165,7 @@ class Api {
     if( queryString.length > 0 )
       finalPath += '?' + queryString.join( '&' );
 
-    console.debug( `API: ${finalPath}` );
+    console.debug( `API ${method} ${type}: ${finalPath}`, data );
     return ajax( finalPath, body, method, type );
   }
 }

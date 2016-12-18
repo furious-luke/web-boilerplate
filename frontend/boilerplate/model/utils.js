@@ -75,7 +75,7 @@ export function getDiffOp( diff ) {
   else if( diff._type[1] === undefined )
     return 'remove';
   else
-    return 'detail';
+    return 'update';
 }
 
 /**

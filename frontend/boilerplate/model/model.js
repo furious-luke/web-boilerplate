@@ -3,7 +3,7 @@ require( 'babel-polyfill' );
 import { OrderedSet, Set, Record, fromJS } from 'immutable';
 import uuid from 'uuid';
 
-import { ID, toArray } from './utils';
+import { getDiffOp, ID, toArray } from './utils';
 
 export default class Model {
 
@@ -16,19 +16,28 @@ export default class Model {
    * itself.
    */
   merge( options ) {
-    for( const key of ['list', 'create', 'detail'] ) {
+    this.idField = options.idField || 'id';
+    this.attributes = fromJS( options.attributes || {} );
+    this.relationships = fromJS( options.relationships || {} );
+    this.indices = fromJS( options.indices || ['id'] );
+    this.ops = {};
+    this._makeRecord();
+
+    // Build a list of all possible operations, then check if
+    // it's been set in options.
+    let operations = ['list', 'create', 'detail', 'update', 'remove'];
+    for( const field of this.iterManyToMany() ) {
+      operations.push( field + 'Add' );
+      operations.push( field + 'Remove' );
+    }
+    for( const key of operations ) {
       if( key in options ) {
-        this[key] = (...args) => options[key]( ...args ).then( data => {
+        this.ops[key] = (...args) => options[key]( ...args ).then( data => {
           console.debug( `Model: ${key}: `, data );
           return data;
         });
       }
     }
-    this.idField = options.idField || 'id';
-    this.attributes = fromJS( options.attributes || {} );
-    this.relationships = fromJS( options.relationships || {} );
-    this.indices = fromJS( options.indices || ['id'] );
-    this._makeRecord();
   }
 
   _makeRecord() {
@@ -68,6 +77,8 @@ export default class Model {
           val.map( x => ID( x ) )
         ));
       }
+      else if( obj[name] )
+        obj = obj.set( name, ID( obj[name] ) );
     });
     return obj;
   }
@@ -111,15 +122,19 @@ export default class Model {
     if( fromObject === undefined ) {
       if( toObject === undefined )
         return;
-      for( const field of this.iterFields() )
-        diff[field] = [undefined, toObject[field]];
+      for( const field of this.iterFields() ) {
+        if( toObject[field] !== undefined )
+          diff[field] = [undefined, toObject[field]];
+      }
       return diff;
     }
 
     // Check for remove.
     else if( toObject === undefined ) {
-      for( const field of this.iterFields() )
-        diff[field] = [fromObject[field], undefined];
+      for( const field of this.iterFields() ) {
+        if( fromObject[field] !== undefined )
+          diff[field] = [fromObject[field], undefined];
+      }
       return diff;
     }
 
@@ -162,6 +177,10 @@ export default class Model {
       relationships: {}
     };
     const op = getDiffOp( diff );
+    if( op == 'remove' ) {
+      data.type = diff._type[0];
+      data.id = diff.id[0];
+    }
     for( const field of this.attributes.keys() ) {
       if( field in diff )
         data.attributes[field] = diff[field][1];
@@ -174,6 +193,6 @@ export default class Model {
         };
       }
     }
-    return data;
+    return {data};
   }
 }

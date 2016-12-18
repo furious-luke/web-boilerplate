@@ -5,7 +5,7 @@ import uuid from 'uuid';
 import { List, Map } from 'immutable';
 
 import Table from './table';
-import { makeId, getDiffOp, getDiffId, isObject, Rollback, ModelError, splitJsonApiResponse } from './utils';
+import { toArray, makeId, getDiffOp, getDiffId, isObject, Rollback, ModelError, splitJsonApiResponse } from './utils';
 import * as modelActions from './actions';
 
 export default class DB {
@@ -66,7 +66,6 @@ export default class DB {
 
     // Now update the head data state to reflect the new server
     // information.
-//    this.resetHead();
     Object.keys( objects ).forEach( type => {
       this.data = this.data.updateIn( ['head', type], x => {
         let tbl = new Table( type, {data: x, schema: this.schema} );
@@ -169,7 +168,8 @@ export default class DB {
     const current = chain.get( 'current' );
     try {
       operation();
-      this.data = this.data.updateIn( ['chain', 'blocks'], x => x.push( current ) );
+      if( this.data.getIn( ['chain', 'current'] ) != current )
+        this.data = this.data.updateIn( ['chain', 'blocks'], x => x.push( current ) );
       this._inBlock = false;
     }
     catch( err ) {
@@ -389,27 +389,62 @@ export default class DB {
       const diffs = this.data.getIn( ['chain', 'diffs'] );
       if( server >= current )
         return;
-      diff = diffs[server];
+      diff = diffs.get( server );
     }
+    console.debug( 'DB: committing: ', diff );
 
     // Find the model, convert data to JSON API, and send using
     // the appropriate operation.
     const model = this.schema.getModel( getDiffId( diff )._type );
     const op = getDiffOp( diff );
     const data = model.diffToJsonApi( diff );
-    let promise = model[op]( data );
+
+    // Different method based on operation.
+    let promise;
+    if( op == 'create' ) {
+      promise = model.ops.create( data )
+                     .then( response => {
+                       const {data} = response;
+                       const id = toArray( data )[0].id;
+                       this.reId( diff._type[1], diff.id[1], id );
+                       return response;
+                     });
+    }
+    else if( op == 'update' ) {
+      promise = model.ops.update( data.data.id, data );
+    }
+    else if( op == 'remove' ) {
+      promise = model.ops.remove( data.data.id );
+    }
+    else
+      throw new ModelError( `Unknown model operation: ${op}` );
+
 
     // Add on any many-to-many values.
     for( const field of model.iterManyToMany() ) {
       if( field in diff ) {
-        promise = promise.then( () => {
-          return model[`${field}Add`] ( diff[field][1] );
+        promise = promise.then( response => {
+          if( !model[`${field}Add`] )
+            throw new ModelError( `No many-to-many add declared for ${field}.` );
+          model[`${field}Add`]( diff[field][1] );
+          return response;
         })
-        .then( () => {
-          return model[`${field}Remove`] ( diff[field][0] );
+        .then( response => {
+          if( !model[`${field}Remove`] )
+            throw new ModelError( `No many-to-many remove declared for ${field}.` );
+          model[`${field}Remove`]( diff[field][0] );
+          return response;
         });
       }
     }
+
+    // Finally, pop the diff.
+    promise = promise.then( response => {
+      this.data = this.data.updateIn( ['chain', 'server'], x => x + 1 );
+      return response;
+    });
+
+    return promise;
   }
 
   postCommitDiff( diff, response ) {
@@ -477,11 +512,11 @@ export default class DB {
       for( const field of relModel.iterManyToMany() ) {
         if( diff[field] ) {
           newDiff[field] = [diff[field][0], diff[field][1]];
-          if( diff[field][0].has( fromId ) ) {
+          if( diff[field][0] && diff[field][0].has( fromId ) ) {
             newDiff[field][0] = newDiff[field][0].delete( fromId ).add( toId );
             changed = true;
           }
-          if( diff[field][1].has( fromId ) ) {
+          if( diff[field][1] && diff[field][1].has( fromId ) ) {
             newDiff[field][1] = newDiff[field][1].delete( fromId ).add( toId );
             changed = true;
           }

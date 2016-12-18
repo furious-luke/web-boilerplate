@@ -32,15 +32,12 @@ const dbReducer = createReducer( null, {
   },
 
   MODEL_SYNC_REQUEST( state, action ) {
-    return {
-      ...state,
-      sync: true
-    };
+    return state;
   },
 
   MODEL_COMMIT_DIFF( state, action ) {
     const { diff, response } = action.payload;
-    let db = new DB( state.db );
+    let db = new DB( state );
     db.postCommitDiff( diff, response );
     db.popDiff();
     return {
@@ -51,15 +48,17 @@ const dbReducer = createReducer( null, {
 
   MODEL_SYNC_SUCCESS( state, action ) {
     const { sync, syncErrors, ...rem } = state;
-    return rem;
+//    return rem;
+    return state;
   },
 
   MODEL_SYNC_FAILURE( state, action ) {
     const { sync, ...rem } = state;
-    return {
-      ...rem,
-      syncErrors: action.payload.errors
-    };
+    return state;
+    /* return {
+       ...rem,
+       syncErrors: action.payload
+       }; */
   }
 });
 
