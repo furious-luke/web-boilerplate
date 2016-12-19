@@ -1,8 +1,7 @@
 import { call, put, take } from 'redux-saga/effects';
+import { csrfSettings } from 'js-tinyapi';
 
 import api from 'api';
-
-import { csrfSettings } from '../actions/utils';
 
 export default function* authSaga() {
   while( true ) {
