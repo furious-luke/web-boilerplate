@@ -1,7 +1,11 @@
 // Bootstrap CSS comes first so that we can override
 // it with other things.
-// import 'bootstrap/dist/css/bootstrap.min.css';
-import 'font-awesome/css/font-awesome.min.css';
+try {
+  require( 'bootstrap/dist/css/bootstrap.min.css' );
+} catch( e ) {};
+try {
+  require( 'font-awesome/css/font-awesome.min.css' );
+} catch( e ) {};
 
 import './libs/csrf';
 import React from 'react';

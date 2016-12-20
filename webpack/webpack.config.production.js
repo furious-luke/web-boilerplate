@@ -8,6 +8,9 @@ config.output = {
   filename: '[name]-[hash].min.js'
 };
 
+config.devtool = undefined;
+config.debug = false;
+
 config.plugins = [
     new BundleTracker({ filename: './webpack-stats.production.json' }),
 

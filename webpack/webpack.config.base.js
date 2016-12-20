@@ -57,5 +57,7 @@ module.exports = {
     root: path.resolve( 'frontend' ),
     modulesDirectories: [ 'node_modules' ],
     extensions: [ '', '.js', '.jsx' ]
-  }
+  },
+  devtool: '#inline-source-map',
+  debug: true
 };

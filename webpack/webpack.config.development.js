@@ -21,8 +21,4 @@ config.plugins = config.plugins.concat([
 // Add a loader for JSX files with react-hot enabled
 config.module.loaders[0].loaders.unshift( 'react-hot' );
 
-// Setup source maps.
-config.devtool = '#inline-source-map';
-config.debug = true;
-
 module.exports = config;
