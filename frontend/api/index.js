@@ -1,4 +1,4 @@
-import Api from 'boilerplate/api';
+import Api from 'js-tinyapi';
 
 let api = new Api({
 
@@ -15,6 +15,7 @@ let api = new Api({
   logout: {
     POST: 'logout'
   }
+
 });
 
 export default api;

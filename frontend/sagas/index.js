@@ -1,8 +1,20 @@
-import { authSaga, modelSaga } from 'boilerplate/sagas';
+import {take, put, select, call} from 'redux-saga/effects';
 
-export default function* rootSaga() {
+import {saga as modelSaga} from 'redux-jam';
+import {authSaga} from 'boilerplate/sagas';
+
+function *eachInline( actionType, saga ) {
+  while( true ) {
+    const action = yield take( actionType );
+    yield saga( action.payload );
+  }
+}
+
+function *rootSaga() {
   yield [
     authSaga(),
-    modelSaga()
+    modelSaga(),
   ];
 }
+
+export default rootSaga;
