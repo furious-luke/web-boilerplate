@@ -267,6 +267,8 @@ def reset_db(remote=False, db=None):
     """
     if not remote:
         manage('reset_db')
+    elif BASE_CONFIG['platform'] == 'aws':
+        manage('reset_db', remote=True)
     else:
         if db is None:
             db = 'DATABASE_URL'
@@ -436,16 +438,17 @@ def heroku_deploy_db(bucket_name):
 
 
 @task
-def aws_deploy_db():
-    now = datetime.datetime.now()
-    filename = 'db-{}.dump'.format(now.strftime('%Y%m%d%H%M'))
-    dump_db(filename)
+def aws_deploy_db(filename):
+    if filename is None:
+        now = datetime.datetime.now()
+        filename = 'var/db-{}.dump'.format(now.strftime('%Y%m%d%H%M'))
+        dump_db(filename)
     endpoint = aws_get_db_endpoint()
     with shell_env(PGPASSFILE='pgpass'):
         with warn_only():
             run_cfg(
                 'pg_restore --verbose --clean --no-acl --no-owner'
-                ' -w -h {} -U $project -d $project var/{}'.format(
+                ' -w -h {} -U $project -d $project {}'.format(
                     endpoint['Address'], filename
                 )
             )
@@ -677,7 +680,7 @@ def aws_create_key_pair():
     fn = '{}.pem'.format(res['KeyName'])
     with open(fn, 'w') as keyf:
         keyf.write(res['KeyMaterial'])
-    os.chmod(fn, stat.S_IRUSR | stats.S_IWUSR)
+    os.chmod(fn, stat.S_IRUSR | stat.S_IWUSR)
 
 
 # Note: Not needed for ECS logging.
@@ -708,7 +711,7 @@ def aws_run_instance():
 
     ami_map = {
         # 'ap-southeast-2': 'ami-862211e5',  # docker enabled amazon
-        'ap-southeast-2': 'ami-f7bf8c94',  # arch linux
+        'ap-southeast-2': 'ami-5c8fb13f',  # arch linux
     }
     image = ami_map[BASE_CONFIG['aws_region']]
     sg_id = aws_get_security_group_id()
@@ -1004,9 +1007,21 @@ def aws_ssh(family=None):
 
 
 @task
+def aws_start():
+    aws_add_env()
+    run_cfg('systemctl start app.service', remote=True)
+
+
+@task
 def aws_restart():
     aws_add_env()
     run_cfg('systemctl restart app.service', remote=True)
+
+
+@task
+def aws_stop():
+    aws_add_env()
+    run_cfg('systemctl stop app.service', remote=True)
 
 
 @task
