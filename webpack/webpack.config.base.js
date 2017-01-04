@@ -6,7 +6,7 @@ module.exports = {
   context: path.resolve( __dirname + '/..' ),
   entry: './frontend/boilerplate/index',
   output: {
-    path: path.resolve( './var/build/js/' ),
+    path: path.resolve( './var/build/' ),
     filename: '[name]-[hash].js'
   },
   plugins: [
@@ -43,9 +43,15 @@ module.exports = {
         ]
       },
       {
-        test: /\.(woff2?|eot|ttf|svg|otf)(\?.+)?$/,
+        test: /\.(png|gif|jpe?g)$/i,
         loaders: [
-          'url'
+          'file?hash=sha512&digest=hex&name=[path][name]-[hash].[ext]'
+        ]
+      },
+      {
+        test: /\.(woff2?|eot|ttf|svg|otf)(\?.+)?$/i,
+        loaders: [
+          'url?limit=10000&name=[name].[ext]'
         ]
       }
     ]

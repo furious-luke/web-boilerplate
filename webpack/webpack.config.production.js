@@ -2,9 +2,11 @@ var path = require( 'path' );
 var webpack = require( 'webpack' );
 var BundleTracker = require( 'webpack-bundle-tracker' );
 var config = require( './webpack.config.base' );
+var project = require( '../../webpack.project' );  // ../.. due to boilerplate
 
 config.output = {
-  path: path.resolve( './var/assets/js/' ),
+  path: path.resolve( './var/assets/' ),
+  publicPath: 'https://' + project.staticBucket + '.s3.amazonaws.com/',
   filename: '[name]-[hash].min.js'
 };
 

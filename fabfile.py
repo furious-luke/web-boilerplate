@@ -332,11 +332,10 @@ def setup_bucket():
 
 
 @task(alias='cs')
-def collect_static(profile=None):
-    """Collect static files (usually to S3).
+def collect_static():
+    """ Collect static files (usually to S3).
     """
-    profile = profile or BASE_CONFIG['aws_profile']
-    env = aws_profile(profile)
+    env = aws_profile()
     with shell_env(**env):
         run_cfg('$manage collectstatic', False, service='web')
 
