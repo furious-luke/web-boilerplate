@@ -28,7 +28,7 @@ STATICFILES_DIRS = [
 
 WEBPACK_LOADER = {
     'DEFAULT': {
-        'BUNDLE_DIR_NAME': 'js/',
+        'BUNDLE_DIR_NAME': '',
         'STATS_FILE': os.path.join(os.path.dirname(BASE_DIR), 'webpack-stats.production.json'),
         'CACHE': True,
     }
@@ -40,6 +40,8 @@ WEBPACK_LOADER = {
 AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com'%AWS_STORAGE_BUCKET_NAME
 
 STATIC_URL = 'https://%s/'%AWS_S3_CUSTOM_DOMAIN
+
+MEDIA_URL = 'https://%s/'%AWS_S3_CUSTOM_DOMAIN
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
 
