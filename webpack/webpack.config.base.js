@@ -10,6 +10,7 @@ module.exports = {
   ],
   output: {
     path: path.resolve( './var/build/' ),
+    publicPath: '/static/',
     filename: '[name]-[hash].js'
   },
   plugins: [
