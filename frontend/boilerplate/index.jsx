@@ -1,12 +1,3 @@
-// Bootstrap CSS comes first so that we can override
-// it with other things.
-try {
-  require( 'bootstrap/dist/css/bootstrap.min.css' );
-} catch( e ) {};
-try {
-  require( 'font-awesome/css/font-awesome.min.css' );
-} catch( e ) {};
-
 import './libs/csrf';
 import React from 'react';
 import { render } from 'react-dom';

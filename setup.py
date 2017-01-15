@@ -131,6 +131,9 @@ if __name__ == '__main__':
         ('requirements/production.txt', 'requirements/production.txt'),
         ('frontend/components', 'frontend/components'),
         ('frontend/actions', 'frontend/actions'),
+        ('frontend/sagas', 'frontend/sagas'),
+        ('frontend/api', 'frontend/api'),
+        ('frontend/models', 'frontend/models'),
         ('frontend/reducers', 'frontend/reducers'),
         ('frontend/routes.jsx', 'frontend/routes.jsx'),
         ('asgi.py', os.path.join(args.project, args.project, 'asgi.py'))
