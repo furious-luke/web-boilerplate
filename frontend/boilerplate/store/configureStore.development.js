@@ -1,7 +1,8 @@
-import { createStore, applyMiddleware, compose } from 'redux';
-import { persistState } from 'redux-devtools';
-import { browserHistory } from 'react-router';
-import { routerMiddleware } from 'react-router-redux';
+import {createStore, applyMiddleware, compose} from 'redux';
+import {persistState} from 'redux-devtools';
+import {browserHistory} from 'react-router';
+import {routerMiddleware} from 'react-router-redux';
+import {enableBatching} from 'redux-batched-actions';
 import createSagaMiddleware from 'redux-saga';
 
 import rootReducer from 'reducers';
@@ -20,7 +21,12 @@ const enhancer = compose(
 );
 
 export default function configureStore( initialState ) {
-  const store = createStore( rootReducer, initialState, enhancer );
+  let finalReducer;
+  if( enableBatching )
+    finalReducer = enableBatching( rootReducer );
+  else
+    finalReducer = rootReducer;
+  const store = createStore( finalReducer, initialState, enhancer );
 
   /* router.listenForReplays( store ); */
 
