@@ -37,11 +37,11 @@ WEBPACK_LOADER = {
 
 # S3
 
-AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com'%AWS_STORAGE_BUCKET_NAME
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
 
-STATIC_URL = 'https://%s/'%AWS_S3_CUSTOM_DOMAIN
+STATIC_URL = 'https://%s/' % AWS_S3_CUSTOM_DOMAIN
 
-MEDIA_URL = 'https://%s/'%AWS_S3_CUSTOM_DOMAIN
+MEDIA_URL = 'https://%s/' % AWS_S3_CUSTOM_DOMAIN
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
 

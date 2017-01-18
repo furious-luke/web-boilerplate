@@ -5,6 +5,7 @@ import {enableBatching} from 'redux-batched-actions';
 import createSagaMiddleware from 'redux-saga';
 
 import rootReducer from 'reducers';
+import rootSaga from 'sagas';
 
 const sagaMiddleware = createSagaMiddleware();
 const enhancer = applyMiddleware( sagaMiddleware, routerMiddleware( browserHistory ) );

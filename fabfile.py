@@ -1,8 +1,8 @@
 #
-# Initialise platform.
-# Provision compute hardware.
+# Initialise platform. aws_init
+# Provision compute hardware. aws_create_server
 #   TODO: Wait for AWS user data to finish running.
-# Provision DB.
+# Provision DB. aws_create_db
 # Create log group. (AWS) TODO: Do this automatically
 # Deploy code.
 # Migrate.

@@ -13,6 +13,7 @@ pip install awscli python-dotenv
 pip install -e git+https://github.com/jtrh/python-dotenv@fix-dotenv-list-for-loop#egg=python-dotenv
 
 # Configure docker and launch.
+groupadd docker
 sed -i 's/dockerd/dockerd --log-driver=journald/g' /usr/lib/systemd/system/docker.service
 systemctl enable docker
 systemctl start docker
