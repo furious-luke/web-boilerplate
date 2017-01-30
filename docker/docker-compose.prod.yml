@@ -1,0 +1,75 @@
+# AWS production configuration. Must override `project`.
+# This is "atto" size. Everything is built into a single
+# container.
+
+version: '2'
+services:
+
+  db:
+    image: postgres:latest
+    volumes:
+      - ../../var:/share
+
+  redis:
+    image: redis:alpine
+
+  nginx:
+    image: furiousluke/nginx:latest
+    ports:
+      - 443:443
+    links:
+      - web
+
+  web:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.prod
+    command: bash -c 'daphne ${PROJECT}.asgi:channel_layer -b 0.0.0.0 -p 8000'
+    environment:
+      - DATABASE_URL=postgres://postgres:@db:5432/postgres
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=dummy
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    links:
+      - db
+      - redis
+    volumes:
+      - ..:/app/boilerplate
+      - ../../var:/app/var
+
+  fg:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.prod
+    command: python3 manage.py runworker
+    environment:
+      - DATABASE_URL=postgres://postgres:@db:5432/postgres
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=dummy
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    links:
+      - db
+      - redis
+    volumes:
+      - ..:/app/boilerplate
+      - ../../var:/app/var
+
+  bg:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.prod
+    command: python3 manage.py cq_runworker
+    environment:
+      - DATABASE_URL=postgres://postgres:@db:5432/postgres
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=dummy
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    links:
+      - db
+      - redis
+    volumes:
+      - ..:/app/boilerplate
+      - ../../var:/app/var

@@ -41,7 +41,7 @@ BASE_CONFIG = {
     'app': '$project',
     'layout': 'develop',
     'platform': 'heroku',
-    'compose': 'docker-compose -f $compose_file -f docker/docker-compose.$layout.yml -p $docker_project',
+    'compose': 'docker-compose -f $compose_file -f docker/docker-compose.project.yml -p $docker_project',
     'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
     'rundb': '$compose run --rm db',
     'aws': 'aws --profile $aws_profile --region $aws_region',
@@ -59,7 +59,7 @@ DEV_CONFIG = {
 
 PROD_CONFIG = {
     'docker_project': '$project',
-    'compose_file': 'boilerplate/docker/docker-compose.$platform.$layout.yml',
+    'compose_file': 'boilerplate/docker/docker-compose.prod.yml',
     'run': '$compose run --rm --service-ports $service',
     'manage': '$run python3 -W ignore manage.py'
 }
