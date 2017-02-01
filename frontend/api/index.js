@@ -7,7 +7,7 @@ let api = new Api({
       name: 'login',
       options: {
         type: 'form',
-        handler: (req, username, password) => req({ data: { username, password }})
+        handler: (req, username, password) => req( {payload: {username, password}} )
       }
     }
   },
