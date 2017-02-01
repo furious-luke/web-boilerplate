@@ -3,7 +3,31 @@
 version: '2'
 services:
 
-  worker:
+  db:
+    image: postgres:latest
+    volumes:
+      - ../../var:/share
+
+  redis:
+    image: redis:alpine
+
+  web:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.development
+      args:
+        run: runserver
+    environment:
+      - REDIS_URL=redis://redis:6379
+    links:
+      - db
+      - redis
+    ports:
+      - 8000:8000
+    volumes:
+      - ../..:/app
+
+  fg:
     build:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.development
@@ -20,36 +44,19 @@ services:
     volumes:
       - ../..:/app
 
-  web:
+  bg:
     build:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.development
       args:
-        run: runserver
+        run: worker
     environment:
       - REDIS_URL=redis://redis:6379
+      - WORKER_PROCESSES=1
+      - WEB_THREADS=1
+      - WORKER_THREADS=3
     links:
       - db
       - redis
-#      - hot
-    ports:
-      - 8000:8000
     volumes:
       - ../..:/app
-
-  db:
-    image: postgres:latest
-    volumes:
-      - ../../var:/share
-
-  redis:
-    image: redis:alpine
-
-  # hot:
-  #   build:
-  #     context: ../..
-  #     dockerfile: boilerplate/docker/Dockerfile.node
-  #   ports:
-  #     - 3000:3000
-  #   volumes:
-  #     - ../..:/app
