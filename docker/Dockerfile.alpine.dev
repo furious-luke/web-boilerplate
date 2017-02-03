@@ -1,0 +1,33 @@
+# Generates development containers. Based on Alpine linux, and attempting
+# to be pretty small.
+
+FROM alpine:latest
+MAINTAINER Luke Hodkinson
+
+RUN mkdir -p /app/src/requirements/boilerplate /app \
+    /etc/service/app/app.d \
+    /etc/my_init.d
+
+ADD boilerplate/requirements/boilerplate /app/src/requirements/boilerplate/
+ADD requirements /app/src/requirements/
+RUN    apk add --no-cache --update \
+         bash python3 postgresql-client libxml2 libxslt zlib libjpeg-turbo \
+    && apk add --no-cache --update --virtual build-dependencies \
+         git wget postgresql-dev zlib-dev g++ make python3-dev libxml2-dev libxslt-dev libjpeg-turbo-dev \
+    && python3 -m ensurepip
+RUN    pip3 install -r /app/src/requirements/development.txt
+RUN    apk del build-dependencies \
+    && rm -r /usr/lib/python*/ensurepip \
+    && rm -rf /var/lib/apt/lists/* /root/.cache
+
+EXPOSE 8000
+
+ARG project
+ENV DJANGO_SETTINGS_MODULE=${project}.settings.development
+ENV PYTHONPATH=/app/${project}:$PYTHONPATH
+
+ENV HOME /root
+ADD docker/build /app/.build
+WORKDIR /app/.build
+RUN /app/.build/build.sh
+WORKDIR /app

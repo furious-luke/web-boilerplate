@@ -10,6 +10,10 @@ BASE_DIR = dn(dn(dn(dn(os.path.abspath(__file__)))))
 
 VAR_DIR = os.path.join(dn(BASE_DIR), 'var')
 
+CLIENT_ID = os.environ.get('CLIENT_ID', '')
+
+SECRET_KEY = os.environ.get('SECRET_KEY', SECRET_KEY)
+
 
 # Application definition
 

@@ -30,19 +30,12 @@ except:
     pass
 
 
-DEFAULT_SERVICE = {
-    'develop': 'web',
-    'atto': 'web',
-    'pico': 'web'
-}
-
 
 BASE_CONFIG = {
     'app': '$project',
-    'layout': 'develop',
-    'platform': 'heroku',
     'compose': 'docker-compose -f $compose_file -f docker/docker-compose.project.yml -p $docker_project',
-    'run': '$compose run --rm --service-ports $service /sbin/my_init --skip-runit --',
+    'service': 'fg',
+    'run': '$compose run --rm --service-ports $service',
     'rundb': '$compose run --rm db',
     'aws': 'aws --profile $aws_profile --region $aws_region',
     'aws_region': 'ap-southeast-2'
@@ -50,8 +43,7 @@ BASE_CONFIG = {
 
 DEV_CONFIG = {
     'docker_project': '${project}_dev',
-    'layout': 'develop',
-    'compose_file': 'boilerplate/docker/docker-compose.develop.yml',
+    'compose_file': 'boilerplate/docker/docker-compose.dev.yml',
     'manage': '$run python3 -W ignore manage.py',
     'coverage': '$run coverage run --source="$project" manage.py test',
     'covhtml': '$run coverage html'
@@ -90,16 +82,8 @@ def prod_cfg(*args):
     return merge_cfgs(BASE_CONFIG, PROD_CONFIG, *args)
 
 
-def update_defaults(cfg):
-    defaults = {}
-    if 'service' not in cfg:
-        defaults['service'] = DEFAULT_SERVICE[cfg['layout']]
-    return merge_cfgs(cfg, defaults)
-
-
 def subs(cmd, dev=True, extra={}):
     cfg = dev_cfg(extra) if dev else prod_cfg(extra)
-    cfg = update_defaults(cfg)
     cmd = Template(cmd).substitute(cfg)
     return cmd
 
@@ -137,21 +121,11 @@ def gen_secret(length=64):
     return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(length))
 
 
-def get_db_name():
-    run_cfg('$compose up -d db')
-    res = run_cfg('$compose ps | grep db | awk \'{{print $$1}}\' | head -n1',
+def get_db_name(prod=False):
+    run_cfg('$compose up -d db', not prod)
+    res = run_cfg('$compose ps | grep db | awk \'{{print $$1}}\' | head -n1', not prod,
                   capture=True)
     return res.strip()
-
-
-@task
-def pull():
-    with warn_only():
-        local('cd boilerplate')
-        local('git checkout develop')
-        local('git pull')
-        local('cd ..')
-        local('git pull')
 
 
 @task
@@ -372,9 +346,9 @@ def heroku_download_db(filename=None):
 
 
 @task
-def load_db(filename):
+def load_db(filename, prod=False):
     src = os.path.join('/share', filename)
-    db_name = get_db_name()
+    db_name = get_db_name(prod)
     cmd = (
         'pg_restore --verbose --clean --no-acl --no-owner'
         ' -h 0.0.0.0 -U postgres -d postgres {}'.format(src)
@@ -384,7 +358,7 @@ def load_db(filename):
     )
     with warn_only():
         local(fullcmd)
-    run_cfg('$compose stop db')
+    run_cfg('$compose stop db', not prod)
 
 
 @task

@@ -1,12 +1,17 @@
 version: '2'
 services:
 
-  worker:
+  web:
     build:
       args:
         project: $project
 
-  web:
+  fg:
+    build:
+      args:
+        project: $project
+
+  bg:
     build:
       args:
         project: $project

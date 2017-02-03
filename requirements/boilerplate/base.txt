@@ -3,8 +3,6 @@ python-dateutil
 pytz
 six
 psycopg2
-boto
--e git+https://github.com/ABASystems/supervisor#egg=supervisor
 
 Django==1.10
 django-extensions
@@ -16,12 +14,12 @@ dj-database-url
 django-storages
 django-webpack-loader
 
-psutil
--e git+https://github.com/furious-luke/python-tidle@d0282a04732af90008aef64e220bf5c6357bf3dc#egg=python-tidle
 -e git+https://github.com/andymccurdy/redis-py#egg=redis
 django-redis
--e git+https://github.com/furious-luke/daphne@7152e191186d9c10bd92b2e28f8914536d8e0a4c#egg=daphne
--e git+https://github.com/furious-luke/channels@2f46809cd66819071d8ed459e29e2a23ab55ea3a#egg=channels
+# -e git+https://github.com/furious-luke/daphne@7152e191186d9c10bd92b2e28f8914536d8e0a4c#egg=daphne
+daphne
+# -e git+https://github.com/furious-luke/channels@2f46809cd66819071d8ed459e29e2a23ab55ea3a#egg=channels
+channels
 -e git+https://github.com/django/asgi_redis@5590861838265d62f29ee29c10291eec8348529e#egg=asgi_redis
 -e git+https://github.com/furious-luke/django-redis-channel-layer@d4615c0f64ea3ee3eecc63a102121c6273b3180a#egg=django-redis-channel-layer
 -e git+https://github.com/furious-luke/django-cq@465cf3078e225b030dc82fbd85996e21d8240ce9#egg=django-cq

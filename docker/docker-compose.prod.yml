@@ -16,6 +16,7 @@ services:
   nginx:
     image: furiousluke/nginx:latest
     ports:
+      - 80:80
       - 443:443
     links:
       - web
@@ -25,17 +26,12 @@ services:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.prod
     command: bash -c 'daphne ${PROJECT}.asgi:channel_layer -b 0.0.0.0 -p 8000'
-    environment:
-      - DATABASE_URL=postgres://postgres:@db:5432/postgres
-      - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=dummy
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
+    env_file:
+      - ../../.env
     links:
       - db
       - redis
     volumes:
-      - ..:/app/boilerplate
       - ../../var:/app/var
 
   fg:
@@ -43,33 +39,19 @@ services:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.prod
     command: python3 manage.py runworker
-    environment:
-      - DATABASE_URL=postgres://postgres:@db:5432/postgres
-      - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=dummy
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
+    env_file:
+      - ../../.env
     links:
       - db
       - redis
-    volumes:
-      - ..:/app/boilerplate
-      - ../../var:/app/var
 
   bg:
     build:
       context: ../..
       dockerfile: boilerplate/docker/Dockerfile.prod
     command: python3 manage.py cq_runworker
-    environment:
-      - DATABASE_URL=postgres://postgres:@db:5432/postgres
-      - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=dummy
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
+    env_file:
+      - ../../.env
     links:
       - db
       - redis
-    volumes:
-      - ..:/app/boilerplate
-      - ../../var:/app/var
