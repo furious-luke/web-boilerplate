@@ -20,7 +20,8 @@
     "redux-batched-actions": "^0.1.5",
     "redux-form": "^6.2.0",
     "redux-saga": "^0.13.0",
-    "uuid": "^2.0.3"
+    "uuid": "^2.0.3",
+    "whatwg-fetch": "^2.0.2"
   },
   "devDependencies": {
     "babel-core": "^6.3.26",
