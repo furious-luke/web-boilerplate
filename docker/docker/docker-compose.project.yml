@@ -1,0 +1,17 @@
+version: '2'
+services:
+
+  web:
+    build:
+      args:
+        project: $project
+
+  fg:
+    build:
+      args:
+        project: $project
+
+  bg:
+    build:
+      args:
+        project: $project

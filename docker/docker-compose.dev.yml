@@ -1,0 +1,54 @@
+# Development configuration. Must override `project` using a second
+# compose file.
+
+version: '2'
+services:
+
+  db:
+    image: postgres:latest
+    volumes:
+      - ../../var:/share
+
+  redis:
+    image: redis:alpine
+
+  web:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.dev
+    command: python3 manage.py runserver 0.0.0.0:8000
+    links:
+      - db
+      - redis
+    ports:
+      - 8000:8000
+    volumes:
+      - ../..:/app
+    env_file:
+      - ../../.env
+
+  fg:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.dev
+    command: python3 manage.py runworker
+    links:
+      - db
+      - redis
+    volumes:
+      - ../..:/app
+    env_file:
+      - ../../.env
+
+  bg:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.dev
+    command: python3 manage.py cq_runworker
+    links:
+      - db
+      - redis
+    volumes:
+      - ../..:/app
+    env_file:
+      - ../../.env

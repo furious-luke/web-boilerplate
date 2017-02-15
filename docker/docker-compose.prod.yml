@@ -1,0 +1,57 @@
+# AWS production configuration. Must override `project`.
+# This is "atto" size. Everything is built into a single
+# container.
+
+version: '2'
+services:
+
+  db:
+    image: postgres:latest
+    volumes:
+      - ../../var:/share
+
+  redis:
+    image: redis:alpine
+
+  nginx:
+    image: furiousluke/nginx:latest
+    ports:
+      - 80:80
+      - 443:443
+    links:
+      - web
+
+  web:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.prod
+    command: bash -c 'daphne ${PROJECT}.asgi:channel_layer -b 0.0.0.0 -p 8000'
+    env_file:
+      - ../../.env
+    links:
+      - db
+      - redis
+    volumes:
+      - ../../var:/app/var
+
+  fg:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.prod
+    command: python3 manage.py runworker
+    env_file:
+      - ../../.env
+    links:
+      - db
+      - redis
+
+  bg:
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.prod
+    command: python3 manage.py cq_runworker
+    env_file:
+      - ../../.env
+    links:
+      - db
+      - redis

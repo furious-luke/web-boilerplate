@@ -1,0 +1,25 @@
+# Generates development containers.
+
+FROM python:latest
+MAINTAINER Luke Hodkinson
+
+RUN mkdir -p /app/src/requirements/boilerplate /app/boilerplate
+
+ADD boilerplate/requirements/boilerplate /app/src/requirements/boilerplate/
+ADD requirements /app/src/requirements/
+RUN    apt-get update \
+    && apt-get install -y \
+         pkg-config libxml2-dev
+RUN    pip3 install -r /app/src/requirements/development.txt
+
+EXPOSE 8000
+
+ARG project
+ENV DJANGO_SETTINGS_MODULE=${project}.settings.development
+ENV PYTHONPATH=/app/${project}:$PYTHONPATH
+
+ENV HOME /root
+ADD docker/build /app/.build
+WORKDIR /app/.build
+RUN /app/.build/build.sh
+WORKDIR /app
