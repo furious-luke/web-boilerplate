@@ -57,6 +57,11 @@ module.exports = {
         loaders: [
           'url?limit=10000&name=[name].[ext]'
         ]
+      },
+      {
+        test: /\.json/,
+        exclude: /node_modules/,
+        loaders: [ 'json' ]
       }
     ]
   },

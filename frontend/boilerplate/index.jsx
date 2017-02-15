@@ -11,6 +11,7 @@ import configureStore from './store';
 import './components/app.css';
 
 // import 'bootstrap/dist/js/bootstrap.min';
+import 'font-awesome/css/font-awesome.min.css';
 
 const store = configureStore({
   auth: {
