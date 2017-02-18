@@ -70,7 +70,7 @@ MEDIA_ROOT = os.path.join(VAR_DIR, 'media')
 
 WEBPACK_LOADER = {
     'DEFAULT': {
-        'BUNDLE_DIR_NAME': 'js/',
+        'BUNDLE_DIR_NAME': '',
         'STATS_FILE': os.path.join(VAR_DIR, 'build', 'webpack-stats.json'),
         'CACHE': False,
     }

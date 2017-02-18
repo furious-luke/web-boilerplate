@@ -4,9 +4,12 @@ var BundleTracker = require( 'webpack-bundle-tracker' );
 
 module.exports = {
   context: path.resolve( __dirname + '/..' ),
-  entry: './frontend/boilerplate/index',
+  entry: [
+    './frontend/boilerplate/index'
+  ],
   output: {
     path: path.resolve( './var/build/' ),
+    publicPath: '/static/',
     filename: '[name]-[hash].js'
   },
   plugins: [
@@ -60,5 +63,7 @@ module.exports = {
     root: path.resolve( 'frontend' ),
     modulesDirectories: [ 'node_modules' ],
     extensions: [ '', '.js', '.jsx' ]
-  }
+  },
+  devtool: '#inline-source-map',
+  debug: true
 };
