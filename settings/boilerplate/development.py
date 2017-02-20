@@ -4,8 +4,7 @@ from ..base import *
 # Application definition
 
 INSTALLED_APPS.extend([
-    'rest_framework_docs',
-    'supertest'
+    'rest_framework_docs'
 ])
 
 

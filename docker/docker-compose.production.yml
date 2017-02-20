@@ -24,8 +24,6 @@ services:
     environment:
       - PORT=8080
       - WEB_CONCURRENCY=1
-      - KEYFILE=keys/dev.key
-      - CERTFILE=keys/dev.cert
     ports:
       - 8080:8080
     links:
