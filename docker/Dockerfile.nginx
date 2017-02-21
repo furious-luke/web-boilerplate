@@ -1,0 +1,11 @@
+FROM alpine:latest
+MAINTAINER furious.luke@gmail.com
+
+RUN mkdir -p /run/nginx/ && \
+    apk add --update nginx && \
+    rm -rf /var/cache/apk/*
+
+ADD boilerplate/docker/nginx.conf /etc/nginx/nginx.conf
+ADD boilerplate/keys /etc/nginx/keys
+
+CMD nginx -g 'daemon off;'

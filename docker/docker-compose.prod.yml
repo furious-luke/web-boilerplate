@@ -14,7 +14,9 @@ services:
     image: redis:alpine
 
   nginx:
-    image: furiousluke/nginx:latest
+    build:
+      context: ../..
+      dockerfile: boilerplate/docker/Dockerfile.nginx
     ports:
       - 80:80
       - 443:443
