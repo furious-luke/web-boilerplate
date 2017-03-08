@@ -152,11 +152,14 @@ if __name__ == '__main__':
     update_settings(args)
     update_urls(args)
 
+    # Set build.sh to executable.
+    os.chmod('docker/build/build.sh', 0o0744)
+
     # Modify the permissions of the local directory to have
     # the sticky bit switched on. Helps prevent docker processes
     # from making files owned by root.
     # TODO: Keep existing permissions.
-    os.chmod('.', 02775)
+    os.chmod('.', 0o2775)
 
     # Generate some development keys.
     os.chdir('boilerplate')

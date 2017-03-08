@@ -1,18 +1,21 @@
-Pillow
+pillow
 python-dateutil
 pytz
 six
 psycopg2
 
-Django==1.10
+django==1.10
 django-extensions
 djangorestframework
-djangorestframework-jsonapi
+djangorestframework-recursive
+django-filter
+-e git+https://github.com/django-json-api/django-rest-framework-json-api#egg=djangorestframework-jsonapi
 dj-database-url
 -e git+https://github.com/furious-luke/django-jsdata#egg=django-jsdata
 -e git+https://github.com/furious-luke/django-xauth@0eadf4ab99685c5bb5103e5603b4e37e6dddd179#egg=django-xauth
 django-storages
 django-webpack-loader
+django-model-utils
 
 -e git+https://github.com/andymccurdy/redis-py#egg=redis
 django-redis

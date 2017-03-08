@@ -1,6 +1,7 @@
-import Api from 'js-tinyapi';
+import {api} from 'js-tinyapi';
 
-let api = new Api({
+api.merge( require( './api.json' ) );
+api.merge({
 
   login: {
     POST: {
@@ -15,7 +16,6 @@ let api = new Api({
   logout: {
     POST: 'logout'
   }
-
 });
 
 export default api;
