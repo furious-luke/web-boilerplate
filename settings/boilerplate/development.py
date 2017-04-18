@@ -30,8 +30,6 @@ SELENIUM_DRIVER = os.environ.get('SELENIUM_DRIVER', 'firefox')
 
 SELENIUM_REMOTE = 'http://selenium:4444/wd/hub/'
 
-TEST_RUNNER = 'supertest.runner.SuperTestRunner'
-
 
 # Loggers
 
